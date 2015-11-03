@@ -34,7 +34,7 @@ executable tutorial
     , servant-docs == 0.5.*
     , servant-js == 0.5.*
     , servant-lucid == 0.5.*
-    , servant-server == 0.5.*
+    , servant-wai == 0.5.*
     , text
     , time
     , transformers
@@ -56,7 +56,7 @@ executable t8-main
     , http-client > 0.4 && < 0.5
     , servant == 0.5.*
     , servant-client == 0.5.*
-    , servant-server == 0.5.*
+    , servant-wai == 0.5.*
     , transformers
     , transformers-compat
     , wai
@@ -81,7 +81,7 @@ executable wai-middleware
       aeson >= 0.8
     , base >= 4.7 && < 5
     , servant == 0.5.*
-    , servant-server == 0.5.*
+    , servant-wai == 0.5.*
     , text
     , wai
     , wai-extra
@@ -98,7 +98,7 @@ executable auth-combinator
     , bytestring
     , http-types
     , servant == 0.5.*
-    , servant-server == 0.5.*
+    , servant-wai == 0.5.*
     , text
     , wai
     , warp
@@ -115,7 +115,7 @@ executable socket-io-chat
     , bytestring
     , http-types
     , servant == 0.5.*
-    , servant-server == 0.5.*
+    , servant-wai == 0.5.*
     , socket-io
     , engine-io
     , engine-io-wai

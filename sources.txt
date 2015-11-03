@@ -4,7 +4,8 @@ servant-client
 servant-docs
 servant-foreign
 servant-js
-servant-server
+servant-server-common
+servant-wai
 servant-examples
 servant-blaze
 servant-lucid

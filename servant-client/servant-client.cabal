@@ -76,7 +76,7 @@ test-suite spec
     , QuickCheck >= 2.7
     , servant == 0.5.*
     , servant-client
-    , servant-server == 0.5.*
+    , servant-wai == 0.5.*
     , text
     , wai
     , warp

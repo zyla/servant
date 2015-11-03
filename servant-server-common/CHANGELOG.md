@@ -1,6 +1,10 @@
 HEAD
 ----
+* Initial commit
+* Retaining almost all code from servant-server (now named servant-wai)
 
+0.5
+---
 * Support for the `HttpVersion`, `IsSecure`, `RemoteHost` and `Vault` combinators
 * Drop `EitherT` in favor of `ExceptT`
 * Use `http-api-data` instead of `Servant.Common.Text`
