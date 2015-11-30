@@ -30,7 +30,7 @@ import qualified Control.Monad.Writer.Strict as SWriter
 import           Data.Typeable
 import           Servant.API
 
-class Enter typ arg ret | typ ret -> arg, arg ret -> typ where
+class Enter typ arg ret | typ ret -> arg where
     enter :: arg -> typ -> ret
 
 -- **  Servant combinators

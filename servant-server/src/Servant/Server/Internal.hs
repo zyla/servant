@@ -569,7 +569,7 @@ class ToRawApplication a where
 instance ToRawApplication Application where
   toRawApplication = id
 
-instance ToRawApplication a => HasServer (Raw m a) where
+instance (m ~ n, ToRawApplication a) => HasServer (Raw m a) where
   type ServerT (Raw m a) n = Raw n a
 
   route Proxy rawApplication = LeafRouter $ \ request respond -> do

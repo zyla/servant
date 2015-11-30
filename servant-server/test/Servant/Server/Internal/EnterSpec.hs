@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE ImpredicativeTypes        #-}
 {-# LANGUAGE TypeOperators     #-}
 module Servant.Server.Internal.EnterSpec where
 
@@ -32,7 +34,7 @@ spec = describe "module Servant.Server.Enter" $ do
 
 type ReaderAPI = "int" :> Get '[JSON] Int
             :<|> "string" :> Post '[JSON] String
-            :<|> "static" :> Raw (Reader String) Application
+            :<|> "static" :> Raw (forall m. m) Application
 
 type IdentityAPI = "bool" :> Get '[JSON] Bool
 
