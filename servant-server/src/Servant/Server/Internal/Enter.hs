@@ -62,7 +62,7 @@ instance
 #if MIN_VERSION_base(4,8,0)
     {-# OVERLAPPABLE #-}
 #endif
-    (Raw m' ~ m, Raw n' ~ n) => Enter (m a) (m' :~> n') (n a)  where
+    (Raw2 m' ~ m, Raw2 n' ~ n) => Enter (m a) (m' :~> n') (n a)  where
         enter _ (Raw a) = Raw a
 
 -- | Like `lift`.

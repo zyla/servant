@@ -11,7 +11,7 @@ import           Network.Wai.Application.Static (defaultFileServerSettings,
                                                  StaticSettings,
                                                  staticApp)
 import           Network.Wai                    (Application)
-import           Servant.API.Raw                (Raw(..))
+import           Servant.API.Raw                (Raw2(..), Raw)
 import           Servant.Server                 (ServerT)
 import           System.FilePath                (addTrailingPathSeparator)
 #if !MIN_VERSION_wai_app_static(3,1,0)
@@ -38,10 +38,10 @@ import           Filesystem.Path.CurrentOS      (decodeString)
 -- behind a /\/static\// prefix. In that case, remember to put the 'serveDirectory'
 -- handler in the last position, because /servant/ will try to match the handlers
 -- in order.
-serveDirectoryWith :: StaticSettings -> ServerT (Raw m Application) n
+serveDirectoryWith :: StaticSettings -> ServerT (Raw Application) n
 serveDirectoryWith settings = Raw (staticApp settings)
 
-serveDirectory :: FilePath -> ServerT (Raw m Application) n
+serveDirectory :: FilePath -> ServerT (Raw Application) n
 serveDirectory = serveDirectoryWith . defaultFileServerSettings .
 #if !MIN_VERSION_wai_app_static(3,1,0)
   decodeString .

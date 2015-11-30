@@ -43,7 +43,7 @@ import           Servant.API                 ((:<|>) (..), (:>), Capture,
                                               Delete, Get, Header,
                                               IsSecure(..), Patch, Post, Put,
                                               QueryFlag, QueryParam, QueryParams,
-                                              Raw(..), RemoteHost, ReqBody, Vault)
+                                              Raw2(..), Raw, RemoteHost, ReqBody, Vault)
 import           Servant.API.ContentTypes    (AcceptHeader (..),
                                               AllCTRender (..),
                                               AllCTUnrender (..),
@@ -569,8 +569,8 @@ class ToRawApplication a where
 instance ToRawApplication Application where
   toRawApplication = id
 
-instance ToRawApplication a => HasServer (Raw m a) where
-  type ServerT (Raw m a) n = Raw n a
+instance ToRawApplication a => HasServer (Raw a) where
+  type ServerT (Raw a) n = Raw2 n a
 
   route Proxy rawApplication = LeafRouter $ \ request respond -> do
     r <- runDelayed rawApplication

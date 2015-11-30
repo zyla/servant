@@ -317,6 +317,6 @@ instance HasLink (Delete y r) where
     type MkLink (Delete y r) = URI
     toLink _ = linkURI
 
-instance HasLink (Raw m a) where
-    type MkLink (Raw m a) = URI
+instance HasLink (Raw a) where
+    type MkLink (Raw a) = URI
     toLink _ = linkURI

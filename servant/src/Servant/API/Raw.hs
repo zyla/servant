@@ -34,10 +34,13 @@ import Control.Applicative (liftA2)
 -- in: IO for wai (the default server provided in servant-server), or another
 -- monad specific to your handler or application (e.g. @AppHandler@ in @Snap@).
 -- Non-server Servant interpretations generally don't look at (@m@).
-newtype Raw (m :: * -> *) a = Raw {
+data Raw a
+
+newtype Raw2 (m :: * -> *) a = Raw {
     unRaw :: a
     } deriving (Eq, Read, Show, Ord, Typeable, Ix, Bounded, Data, Generic, Generic1)
 
+{-
 instance Monoid a => Monoid (Raw m a) where
     mempty = Raw mempty
     mappend (Raw a) (Raw b) = Raw (mappend a b)
@@ -149,3 +152,4 @@ instance RealFloat a => RealFloat (Raw m a) where
     isNegativeZero (Raw x) = isNegativeZero x
     isIEEE (Raw x) = isIEEE x
     atan2 = liftA2 atan2
+-}

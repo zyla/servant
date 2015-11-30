@@ -38,7 +38,7 @@ import           Servant.API                ((:<|>) (..), (:>), Capture, Delete,
                                              HttpVersion, IsSecure (..), JSON,
                                              Patch, PlainText, Post, Put,
                                              QueryFlag, QueryParam, QueryParams,
-                                             Raw(..), RemoteHost, ReqBody,
+                                             Raw2(..), Raw, RemoteHost, ReqBody,
                                              addHeader)
 import           Servant.Server             (Server, serve, ServantErr(..), err404)
 import           Test.Hspec                 (Spec, describe, it, shouldBe)
@@ -122,7 +122,7 @@ captureSpec = do
         get "/notAnInt" `shouldRespondWith` 404
 
     with (return (serve
-        (Proxy :: Proxy (Capture "captured" String :> Raw IO Application))
+        (Proxy :: Proxy (Capture "captured" String :> Raw Application))
         (\ "captured" -> Raw (\ request_ respond ->
             respond $ responseLBS ok200 [] (cs $ show $ pathInfo request_))))) $ do
       it "strips the captured path snippet from pathInfo" $ do
@@ -423,7 +423,7 @@ headerSpec = describe "Servant.API.Header" $ do
             delete' "/" "" `shouldRespondWith` 204
 
 
-type RawApi = "foo" :> Raw IO Application
+type RawApi = "foo" :> Raw Application
 rawApi :: Proxy RawApi
 rawApi = Proxy
 rawApplication :: Show a => (Request -> a) -> Application
