@@ -14,5 +14,5 @@ import Servant.CoMock.Internal
 -- Evidently, if the behaviour of the server is expected to be
 -- non-deterministic, or if depends fundamentally on time, this function may
 -- produce spurious failures.
-serversEqual :: HasClient a => Proxy a -> BaseUrl -> BaseUrl -> Property
+serversEqual :: HasClient a => Proxy a -> BaseUrl -> BaseUrl -> IO Property
 serversEqual = undefined
