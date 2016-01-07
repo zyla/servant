@@ -3,11 +3,13 @@ module Servant.CoMock.InternalSpec (spec) where
 import Control.Concurrent (forkIO, killThread)
 import Data.Proxy
 import Network.Wai.Handler.Warp (run)
+import Network.HTTP.Client (newManager, defaultManagerSettings)
 import Servant
 import Servant.Client
 import Test.Hspec
 import Test.QuickCheck
 
+import Servant.CoMock.Internal
 import Servant.CoMock
 
 spec :: Spec
@@ -51,18 +53,22 @@ testPort1, testPort2 :: Int
 testPort1 = 5381
 testPort2 = 5382
 
-testServers :: (HasServer a, HasClient a) => Proxy a -> Server a -> Server a -> Property
-testServers p s1 s2 = ioProperty $ do
-    t1 <- forkIO $ run testPort1 $ serve p s1
-    t2 <- forkIO $ run testPort2 $ serve p s2
-    p <- serversEqual p (BaseUrl Http "localhost" testPort1 "")
+
+testServers :: (Testable (ShouldMatch (Client a)), HasServer a, HasClient a) => Proxy a -> Server a -> Server a -> Property
+testServers api s1 s2 = ioProperty $ do
+    mgr <- newManager defaultManagerSettings
+    t1 <- forkIO $ run testPort1 $ serve api s1
+    t2 <- forkIO $ run testPort2 $ serve api s2
+    let p = serversEqual api mgr (BaseUrl Http "localhost" testPort1 "")
                         (BaseUrl Http "localhost" testPort1 "")
     killThread t1
     killThread t2
     return p
 
-testServersEq :: (HasServer a, HasClient a) => Proxy a -> Server a -> Property
-testServersEq p s1 = testServers p s1 s1
+testServersEq :: (Testable (ShouldMatch (Client a)), HasServer a, HasClient a)
+    => Proxy a -> Server a -> Property
+testServersEq api s1 = testServers api s1 s1
 
-testServersUneq :: (HasServer a, HasClient a) => Proxy a -> Server a -> Server a -> Property
-testServersUneq p s1 s2 = expectFailure $ testServers p s1 s2
+testServersUneq :: (Testable (ShouldMatch (Client a)), HasServer a, HasClient a)
+    => Proxy a -> Server a -> Server a -> Property
+testServersUneq api s1 s2 = expectFailure $ testServers api s1 s2

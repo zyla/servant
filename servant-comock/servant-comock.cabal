@@ -21,6 +21,7 @@ library
   build-depends:       base >=4.8 && <4.9
                      , QuickCheck == 2.8.*
                      , mtl == 2.2.*
+                     , http-client == 0.4.*
                      , servant-client == 0.5.*
                      , servant == 0.5.*
   hs-source-dirs:      src
@@ -40,6 +41,7 @@ test-suite spec
   build-depends:       base == 4.*
                      , servant-comock
                      , hspec
+                     , http-client
                      , warp
                      , servant-server
                      , servant-client
