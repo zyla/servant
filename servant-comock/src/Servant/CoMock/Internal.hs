@@ -17,7 +17,7 @@ type ServantRes a = ExceptT ServantError IO a
 instance Eq ServantError where
     e1 == e2 = True
 
-instance (Eq a) => Testable (ShouldMatch (ServantRes a)) where
+instance (Show a, Eq a) => Testable (ShouldMatch (ServantRes a)) where
     property (ShouldMatch e1 e2) = ioProperty $ do
         e1' <- runExceptT e1
         e2' <- runExceptT e2

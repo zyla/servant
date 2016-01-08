@@ -54,21 +54,31 @@ testPort1 = 5381
 testPort2 = 5382
 
 
-testServers :: (Testable (ShouldMatch (Client a)), HasServer a, HasClient a) => Proxy a -> Server a -> Server a -> Property
-testServers api s1 s2 = ioProperty $ do
+testServers :: (Testable (ShouldMatch (Client a)), HasServer a, HasClient a) => Proxy a -> Server a -> Server a -> IO Result
+testServers api s1 s2 = do
     mgr <- newManager defaultManagerSettings
     t1 <- forkIO $ run testPort1 $ serve api s1
     t2 <- forkIO $ run testPort2 $ serve api s2
-    let p = serversEqual api mgr (BaseUrl Http "localhost" testPort1 "")
-                        (BaseUrl Http "localhost" testPort1 "")
+    print "here"
+    res <- serversEqual api mgr (BaseUrl Http "localhost" testPort1 "")
+                                (BaseUrl Http "localhost" testPort2 "")
+                                stdArgs
     killThread t1
     killThread t2
-    return p
+    return res
 
 testServersEq :: (Testable (ShouldMatch (Client a)), HasServer a, HasClient a)
-    => Proxy a -> Server a -> Property
-testServersEq api s1 = testServers api s1 s1
+    => Proxy a -> Server a -> Expectation
+testServersEq api s1 = do
+    r <- testServers api s1 s1
+    r `shouldSatisfy` isSuccess
 
 testServersUneq :: (Testable (ShouldMatch (Client a)), HasServer a, HasClient a)
-    => Proxy a -> Server a -> Server a -> Property
-testServersUneq api s1 s2 = expectFailure $ testServers api s1 s2
+    => Proxy a -> Server a -> Server a -> Expectation
+testServersUneq api s1 s2 = do
+    r <- testServers api s1 s2
+    r `shouldSatisfy` not . isSuccess
+
+isSuccess :: Result -> Bool
+isSuccess (Success _ _ _) = True
+isSuccess _               = False
