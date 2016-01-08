@@ -28,9 +28,19 @@ serversEqualSpec = describe "serversEqual" $ do
     it "considers unequal servers unequal" $ do
       testServersUneq onlyReturnAPI onlyReturnAPIServer onlyReturnAPIServer'
 
+  context "servers with function types" $ do
+
+    it "considers equal servers equal" $ do
+      testServersEq functionAPI functionAPIServer
+
+    it "considers unequal servers unequal" $ do
+      testServersUneq functionAPI functionAPIServer functionAPIServer'
+
 ------------------------------------------------------------------------------
 -- APIs
 ------------------------------------------------------------------------------
+
+-- * OnlyReturn
 
 type OnlyReturnAPI = Get '[JSON] Int
                 :<|> Post '[JSON] String
@@ -43,6 +53,37 @@ onlyReturnAPIServer = return 5 :<|> return "hi"
 
 onlyReturnAPIServer' :: Server OnlyReturnAPI
 onlyReturnAPIServer' = return 5 :<|> return "hia"
+
+-- * Function
+
+type FunctionAPI = ReqBody '[JSON] String :> Post '[JSON] Int
+              :<|> Header "X-abool" Bool :> Get '[JSON] (Maybe Bool)
+
+functionAPI :: Proxy FunctionAPI
+functionAPI = Proxy
+
+functionAPIServer :: Server FunctionAPI
+functionAPIServer = return . length :<|> return
+
+functionAPIServer' :: Server FunctionAPI
+functionAPIServer' = (\x -> return $ length x - 1) :<|> \x -> return (not <$> x)
+
+-- * Stateful
+
+{-
+type StatefulAPI = ReqBody '[JSON] String :> Post '[JSON] Int
+              :<|> Get '[JSON] String
+
+statefulMVar :: MVar String
+statefulMVar = unsafePerformIO $ newMVar ""
+
+statefulAPI :: Proxy StatefulAPI
+statefulAPI = Proxy
+
+statefulAPIServer :: Server StatefulAPI
+statefulAPIServer = (\x -> liftIO $ swapMVar statefulMVar x)
+               :<|> liftIO $ readMVar statefulMVar >>= return . length
+-}
 
 ------------------------------------------------------------------------------
 -- Utils
