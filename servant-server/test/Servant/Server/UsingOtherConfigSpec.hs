@@ -44,20 +44,20 @@ instance forall subApi a .  (HasServer subApi) =>
 
 -- * when you need to extract from a configuration param.
 
-newtype TaggedApply tag a b = TaggedApply (a, a -> b)
+newtype Apply a b = Apply (a, a -> b)
 
-appApply :: TaggedApply tag a b -> b
-appApply (TaggedApply (a, f)) = f a
+appApply :: Apply a b -> b
+appApply (Apply (a, f)) = f a
 
-data CustomArrow tag (a :: *) (b :: *)
+data CustomArrow (a :: *) (b :: *)
 
-instance forall subApi a b tag . (HasServer subApi) =>
-  HasServer (CustomArrow tag a b :> subApi) where
+instance forall subApi a b . (HasServer subApi) =>
+  HasServer (CustomArrow a b :> subApi) where
 
-  type ServerT (CustomArrow tag a b :> subApi) m =
+  type ServerT (CustomArrow a b :> subApi) m =
     b -> ServerT subApi m
-  type HasCfg (CustomArrow tag a b :> subApi) c =
-    (HasConfigEntry c (TaggedApply tag a b), HasCfg subApi c)
+  type HasCfg (CustomArrow a b :> subApi) c =
+    (HasConfigEntry c (Apply a b), HasCfg subApi c)
 
   route Proxy config delayed =
     route subProxy config (fmap (inject config) delayed :: Delayed (Server subApi))
@@ -116,18 +116,21 @@ twoDifferentEntries = serve (Proxy :: Proxy TwoDifferentEntries) config $
 
 
 -- using tagged apply to extract from same value.
-data NameTag
-data AgeTag
 data User = User { name :: String, age :: Int }
 
+-- a newtype wrapper around Int
+newtype MyInt = MyInt { unMyInt :: Int }
+
 type TwoEntrySameDep =
-  "name" :> CustomArrow NameTag (MVar User) (IO String) :> Get '[JSON] String :<|>
-  "age" :> CustomArrow AgeTag (MVar User) (IO Int)     :> Get '[JSON] Int
+  "name" :> CustomArrow (MVar User) (IO String) :> Get '[JSON] String :<|>
+  "age"  :> CustomArrow (MVar User) (IO Int)    :> Get '[JSON] Int    :<|>
+  "age2" :> CustomArrow (MVar User) (IO MyInt)  :> Get '[JSON] Int
 
 mkConfig :: MVar User
-         -> Config (TaggedApply NameTag (MVar User) (IO String) ': TaggedApply AgeTag (MVar User) (IO Int) ': '[])
-mkConfig mvarUser = TaggedApply (mvarUser, fmap name . readMVar)
-                .:. TaggedApply (mvarUser, fmap age . readMVar)
+         -> Config (Apply (MVar User) (IO String) ': Apply (MVar User) (IO Int) ': Apply (MVar User) (IO MyInt) ': '[])
+mkConfig mvarUser = Apply (mvarUser, fmap name . readMVar)
+                .:. Apply (mvarUser, fmap age . readMVar)
+                .:. Apply (mvarUser, fmap (MyInt . age) . readMVar)
                 .:. EmptyConfig
 
 
@@ -135,7 +138,9 @@ twoEntrySameDep :: MVar User -> Application
 twoEntrySameDep mvarUser = do
   let config = mkConfig mvarUser
   serve (Proxy :: Proxy TwoEntrySameDep) config $
-    liftIO . fmap (++ "!!!") :<|> liftIO . fmap (+ 3)
+    liftIO . fmap (++ "!!!") :<|>
+    liftIO . fmap (+ 3) :<|>
+    liftIO . fmap ((+) 10 . unMyInt)
 
 -- * tests
 
@@ -160,3 +165,4 @@ spec =
       it "allows two endpoints to both depend on the same data" $ do
         get "/name" `shouldRespondWith` "\"servant!!!\""
         get "/age" `shouldRespondWith` "5"
+        get "/age2" `shouldRespondWith` "12"
