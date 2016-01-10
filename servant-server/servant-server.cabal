@@ -106,6 +106,7 @@ test-suite spec
     , aeson
     , bytestring
     , bytestring-conversion
+    , deepseq
     , directory
     , exceptions
     , hspec == 2.*
