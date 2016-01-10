@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE KindSignatures             #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
@@ -15,6 +16,7 @@ import           Network.Wai
 import           Test.Hspec (Spec, describe, it)
 import           Test.Hspec.Wai
 
+import Control.Concurrent (MVar, newMVar, readMVar)
 import           Servant
 import           Servant.Server.Internal.Config
 import           Servant.Server.Internal.RoutingApplication
@@ -39,6 +41,31 @@ instance forall subApi a .  (HasServer subApi) =>
       subProxy = Proxy
 
       inject c f = f (getConfigEntry c)
+
+-- * when you need to extract from a configuration param.
+
+newtype TaggedApply tag a b = TaggedApply (a, a -> b)
+
+appApply :: TaggedApply tag a b -> b
+appApply (TaggedApply (a, f)) = f a
+
+data CustomArrow tag (a :: *) (b :: *)
+
+instance forall subApi a b tag . (HasServer subApi) =>
+  HasServer (CustomArrow tag a b :> subApi) where
+
+  type ServerT (CustomArrow tag a b :> subApi) m =
+    b -> ServerT subApi m
+  type HasCfg (CustomArrow tag a b :> subApi) c =
+    (HasConfigEntry c (TaggedApply tag a b), HasCfg subApi c)
+
+  route Proxy config delayed =
+    route subProxy config (fmap (inject config) delayed :: Delayed (Server subApi))
+      where
+        subProxy :: Proxy subApi
+        subProxy = Proxy
+
+        inject c f = f (appApply (getConfigEntry c))
 
 -- * API
 
@@ -87,6 +114,29 @@ twoDifferentEntries = serve (Proxy :: Proxy TwoDifferentEntries) config $
       WrappedCustomConfig (CustomConfig "secondConfigValue") .:.
       EmptyConfig
 
+
+-- using tagged apply to extract from same value.
+data NameTag
+data AgeTag
+data User = User { name :: String, age :: Int }
+
+type TwoEntrySameDep =
+  "name" :> CustomArrow NameTag (MVar User) (IO String) :> Get '[JSON] String :<|>
+  "age" :> CustomArrow AgeTag (MVar User) (IO Int)     :> Get '[JSON] Int
+
+mkConfig :: MVar User
+         -> Config (TaggedApply NameTag (MVar User) (IO String) ': TaggedApply AgeTag (MVar User) (IO Int) ': '[])
+mkConfig mvarUser = TaggedApply (mvarUser, fmap name . readMVar)
+                .:. TaggedApply (mvarUser, fmap age . readMVar)
+                .:. EmptyConfig
+
+
+twoEntrySameDep :: MVar User -> Application
+twoEntrySameDep mvarUser = do
+  let config = mkConfig mvarUser
+  serve (Proxy :: Proxy TwoEntrySameDep) config $
+    liftIO . fmap (++ "!!!") :<|> liftIO . fmap (+ 3)
+
 -- * tests
 
 spec :: Spec
@@ -105,3 +155,8 @@ spec =
       it "allows to retrieve different ConfigEntries for the same combinator" $ do
         get "/foo" `shouldRespondWith` "\"firstConfigValue\""
         get "/bar" `shouldRespondWith` "\"secondConfigValue\""
+
+    with (fmap twoEntrySameDep (liftIO (newMVar (User "servant" 2)))) $
+      it "allows two endpoints to both depend on the same data" $ do
+        get "/name" `shouldRespondWith` "\"servant!!!\""
+        get "/age" `shouldRespondWith` "5"
