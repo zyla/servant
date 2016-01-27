@@ -5,6 +5,7 @@ language: c
 env:
   - GHCVER=7.8.4
   - GHCVER=7.10.2
+  - GHCVER=8.0.1
 
 addons:
   apt:
@@ -13,6 +14,7 @@ addons:
     packages:
       - ghc-7.8.4
       - ghc-7.10.2
+      - ghc-8.0.1
       - cabal-install-1.22
       - libgmp-dev
 
