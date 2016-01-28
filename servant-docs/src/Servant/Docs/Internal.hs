@@ -383,10 +383,14 @@ class HasDocs layout where
 -- >
 -- >     where g = Greet "Hello, haskeller!"
 --
--- You can also instantiate this class using 'toSamples' instead of
--- 'toSample': it lets you specify different responses along with
+-- You can also implement 'ToSample' giving multiple samples, along with
 -- some context (as 'Text') that explains when you're supposed to
--- get the corresponding response.
+-- get the corresponding response:
+--
+-- > data Greet2 = Greet2 Text
+-- >   deriving (Generic, Show)
+-- >
+-- > instance ToSample
 class ToSample a where
   toSamples :: Proxy a -> [(Text, a)]
   default toSamples :: (Generic a, GToSample (Rep a)) => Proxy a -> [(Text, a)]
