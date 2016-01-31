@@ -75,11 +75,11 @@ import           Servant.Server.Internal.ServantErr
 
 
 class HasServer layout config where
-  type ServerT layout (m :: * -> *) :: *
+  type ServerT layout config (m :: * -> *) :: *
 
-  route :: Proxy layout -> Config config -> Delayed (Server layout) -> Router
+  route :: Proxy layout -> Config config -> Delayed (Server layout config) -> Router
 
-type Server layout = ServerT layout (ExceptT ServantErr IO)
+type Server layout config = ServerT layout config (ExceptT ServantErr IO)
 
 -- * Instances
 
@@ -96,7 +96,7 @@ type Server layout = ServerT layout (ExceptT ServantErr IO)
 -- >         postBook book = ...
 instance (HasServer a config, HasServer b config) => HasServer (a :<|> b) config where
 
-  type ServerT (a :<|> b) m = ServerT a m :<|> ServerT b m
+  type ServerT (a :<|> b) config m = ServerT a config m :<|> ServerT b config m
 
   route Proxy config server = choice (route pa config ((\ (a :<|> _) -> a) <$> server))
                                      (route pb config ((\ (_ :<|> b) -> b) <$> server))
@@ -126,8 +126,8 @@ captured _ = parseUrlPieceMaybe
 instance (KnownSymbol capture, FromHttpApiData a, HasServer sublayout config)
       => HasServer (Capture capture a :> sublayout) config where
 
-  type ServerT (Capture capture a :> sublayout) m =
-     a -> ServerT sublayout m
+  type ServerT (Capture capture a :> sublayout) config m =
+     a -> ServerT sublayout config m
 
   route Proxy config d =
     DynamicRouter $ \ first ->
@@ -203,7 +203,7 @@ instance OVERLAPPABLE_
          ( AllCTRender ctypes a, ReflectMethod method, KnownNat status
          ) => HasServer (Verb method status ctypes a) config where
 
-  type ServerT (Verb method status ctypes a) m = m a
+  type ServerT (Verb method status ctypes a) config m = m a
 
   route Proxy _ = methodRouter method (Proxy :: Proxy ctypes) status
     where method = reflectMethod (Proxy :: Proxy method)
@@ -214,7 +214,7 @@ instance OVERLAPPING_
          , GetHeaders (Headers h a)
          ) => HasServer (Verb method status ctypes (Headers h a)) config where
 
-  type ServerT (Verb method status ctypes (Headers h a)) m = m (Headers h a)
+  type ServerT (Verb method status ctypes (Headers h a)) config m = m (Headers h a)
 
   route Proxy _ = methodRouterHeaders method (Proxy :: Proxy ctypes) status
     where method = reflectMethod (Proxy :: Proxy method)
@@ -243,8 +243,8 @@ instance OVERLAPPING_
 instance (KnownSymbol sym, FromHttpApiData a, HasServer sublayout config)
       => HasServer (Header sym a :> sublayout) config where
 
-  type ServerT (Header sym a :> sublayout) m =
-    Maybe a -> ServerT sublayout m
+  type ServerT (Header sym a :> sublayout) config m =
+    Maybe a -> ServerT sublayout config m
 
   route Proxy config subserver = WithRequest $ \ request ->
     let mheader = parseHeaderMaybe =<< lookup str (requestHeaders request)
@@ -275,8 +275,8 @@ instance (KnownSymbol sym, FromHttpApiData a, HasServer sublayout config)
 instance (KnownSymbol sym, FromHttpApiData a, HasServer sublayout config)
       => HasServer (QueryParam sym a :> sublayout) config where
 
-  type ServerT (QueryParam sym a :> sublayout) m =
-    Maybe a -> ServerT sublayout m
+  type ServerT (QueryParam sym a :> sublayout) config m =
+    Maybe a -> ServerT sublayout config m
 
   route Proxy config subserver = WithRequest $ \ request ->
     let querytext = parseQueryText $ rawQueryString request
@@ -311,8 +311,8 @@ instance (KnownSymbol sym, FromHttpApiData a, HasServer sublayout config)
 instance (KnownSymbol sym, FromHttpApiData a, HasServer sublayout config)
       => HasServer (QueryParams sym a :> sublayout) config where
 
-  type ServerT (QueryParams sym a :> sublayout) m =
-    [a] -> ServerT sublayout m
+  type ServerT (QueryParams sym a :> sublayout) config m =
+    [a] -> ServerT sublayout config m
 
   route Proxy config subserver = WithRequest $ \ request ->
     let querytext = parseQueryText $ rawQueryString request
@@ -342,8 +342,8 @@ instance (KnownSymbol sym, FromHttpApiData a, HasServer sublayout config)
 instance (KnownSymbol sym, HasServer sublayout config)
       => HasServer (QueryFlag sym :> sublayout) config where
 
-  type ServerT (QueryFlag sym :> sublayout) m =
-    Bool -> ServerT sublayout m
+  type ServerT (QueryFlag sym :> sublayout) config m =
+    Bool -> ServerT sublayout config m
 
   route Proxy config subserver = WithRequest $ \ request ->
     let querytext = parseQueryText $ rawQueryString request
@@ -366,7 +366,7 @@ instance (KnownSymbol sym, HasServer sublayout config)
 -- > server = serveDirectory "/var/www/images"
 instance HasServer Raw config where
 
-  type ServerT Raw m = Application
+  type ServerT Raw config m = Application
 
   route Proxy _ rawApplication = LeafRouter $ \ request respond -> do
     r <- runDelayed rawApplication
@@ -399,8 +399,8 @@ instance HasServer Raw config where
 instance ( AllCTUnrender list a, HasServer sublayout config
          ) => HasServer (ReqBody list a :> sublayout) config where
 
-  type ServerT (ReqBody list a :> sublayout) m =
-    a -> ServerT sublayout m
+  type ServerT (ReqBody list a :> sublayout) config m =
+    a -> ServerT sublayout config m
 
   route Proxy config subserver = WithRequest $ \ request ->
     route (Proxy :: Proxy sublayout) config (addBodyCheck subserver (bodyCheck request))
@@ -426,7 +426,7 @@ instance ( KnownSymbol path
          )
     => HasServer (path :> sublayout) config where
 
-  type ServerT (path :> sublayout) m = ServerT sublayout m
+  type ServerT (path :> sublayout) config m = ServerT sublayout config m
 
   route Proxy config subserver = StaticRouter $
     M.singleton (cs (symbolVal proxyPath))
@@ -434,13 +434,13 @@ instance ( KnownSymbol path
     where proxyPath = Proxy :: Proxy path
 
 instance HasServer api config => HasServer (RemoteHost :> api) config where
-  type ServerT (RemoteHost :> api) m = SockAddr -> ServerT api m
+  type ServerT (RemoteHost :> api) config m = SockAddr -> ServerT api config m
 
   route Proxy config subserver = WithRequest $ \req ->
     route (Proxy :: Proxy api) config (passToServer subserver $ remoteHost req)
 
 instance HasServer api config => HasServer (IsSecure :> api) config where
-  type ServerT (IsSecure :> api) m = IsSecure -> ServerT api m
+  type ServerT (IsSecure :> api) config m = IsSecure -> ServerT api config m
 
   route Proxy config subserver = WithRequest $ \req ->
     route (Proxy :: Proxy api) config (passToServer subserver $ secure req)
@@ -448,13 +448,13 @@ instance HasServer api config => HasServer (IsSecure :> api) config where
     where secure req = if isSecure req then Secure else NotSecure
 
 instance HasServer api config => HasServer (Vault :> api) config where
-  type ServerT (Vault :> api) m = Vault -> ServerT api m
+  type ServerT (Vault :> api) config m = Vault -> ServerT api config m
 
   route Proxy config subserver = WithRequest $ \req ->
     route (Proxy :: Proxy api) config (passToServer subserver $ vault req)
 
 instance HasServer api config => HasServer (HttpVersion :> api) config where
-  type ServerT (HttpVersion :> api) m = HttpVersion -> ServerT api m
+  type ServerT (HttpVersion :> api) config m = HttpVersion -> ServerT api config m
 
   route Proxy config subserver = WithRequest $ \req ->
     route (Proxy :: Proxy api) config (passToServer subserver $ httpVersion req)
@@ -462,12 +462,12 @@ instance HasServer api config => HasServer (HttpVersion :> api) config where
 -- | Basic Authentication
 instance ( KnownSymbol realm
          , HasServer api config
-         , HasConfigEntry config (BasicAuthCheck (AuthReturnType (BasicAuth realm)))
+         , HasConfigEntry config (BasicAuthCheck (GetConfigByConstructor config BasicAuthCheck))
          )
     => HasServer (BasicAuth realm :> api) config where
 
-  type ServerT (BasicAuth realm :> api) m =
-    AuthReturnType (BasicAuth realm) -> ServerT api m
+  type ServerT (BasicAuth realm :> api) config m =
+    (GetConfigByConstructor config BasicAuthCheck) -> ServerT api config m
 
   route Proxy config subserver = WithRequest $ \ request ->
     route (Proxy :: Proxy api) config (subserver `addAuthCheck` authCheck request)
@@ -477,19 +477,19 @@ instance ( KnownSymbol realm
        authCheck req = runBasicAuth req realm basicAuthConfig
 
 -- | General Authentication
-instance ( HasServer api config
-         , HasConfigEntry config (AuthHandler Request (AuthReturnType (AuthProtect tag)))
-         )
-    => HasServer (AuthProtect tag :> api) config where
+{-instance ( HasServer api config-}
+         {-, HasConfigEntry config (AuthHandler Request (AuthReturnType (AuthProtect tag)))-}
+         {-)-}
+    {-=> HasServer (AuthProtect tag :> api) config where-}
 
-  type ServerT (AuthProtect tag :> api) m =
-    AuthReturnType (AuthProtect tag) -> ServerT api m
+  {-type ServerT (AuthProtect tag :> api) config m =-}
+    {-AuthReturnType (AuthProtect tag) -> ServerT api config m-}
 
-  route Proxy config subserver = WithRequest $ \ request ->
-    route (Proxy :: Proxy api) config (subserver `addAuthCheck` authCheck request)
-      where
-        authHandler = unAuthHandler (getConfigEntry config)
-        authCheck = fmap (either FailFatal Route) . runExceptT . authHandler
+  {-route Proxy config subserver = WithRequest $ \ request ->-}
+    {-route (Proxy :: Proxy api) config (subserver `addAuthCheck` authCheck request)-}
+      {-where-}
+        {-authHandler = unAuthHandler (getConfigEntry config)-}
+        {-authCheck = fmap (either FailFatal Route) . runExceptT . authHandler-}
 
 pathIsEmpty :: Request -> Bool
 pathIsEmpty = go . pathInfo
@@ -505,8 +505,8 @@ ct_wildcard = "*" <> "/" <> "*" -- Because CPP
 instance (HasConfigEntry config (NamedConfig name subConfig), HasServer subApi subConfig)
   => HasServer (WithNamedConfig name subConfig subApi) config where
 
-  type ServerT (WithNamedConfig name subConfig subApi) m =
-    ServerT subApi m
+  type ServerT (WithNamedConfig name subConfig subApi) config m =
+    ServerT subApi subConfig m
 
   route Proxy config delayed =
     route subProxy subConfig delayed

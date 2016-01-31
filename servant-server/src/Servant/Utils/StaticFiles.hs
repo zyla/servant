@@ -36,7 +36,7 @@ import           Filesystem.Path.CurrentOS      (decodeString)
 -- behind a /\/static\// prefix. In that case, remember to put the 'serveDirectory'
 -- handler in the last position, because /servant/ will try to match the handlers
 -- in order.
-serveDirectory :: FilePath -> Server Raw
+serveDirectory :: FilePath -> Server Raw config
 serveDirectory =
 #if MIN_VERSION_wai_app_static(3,1,0)
     staticApp . defaultFileServerSettings . addTrailingPathSeparator

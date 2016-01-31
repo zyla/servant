@@ -45,7 +45,7 @@ testApi = Proxy
 -- that represents the API, are glued together using :<|>.
 --
 -- Each handler runs in the 'ExceptT ServantErr IO' monad.
-server :: Server TestApi
+server :: Server TestApi config
 server = helloH :<|> postGreetH :<|> deleteGreetH
 
   where helloH name Nothing = helloH name (Just False)

@@ -6,6 +6,7 @@
 {-# LANGUAGE KindSignatures             #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 
 #include "overlapping-compat.h"
@@ -30,6 +31,10 @@ data Config configTypes where
     EmptyConfig :: Config '[]
     (:.) :: x -> Config xs -> Config (x ': xs)
 infixr 5 :.
+
+type family GetConfigByConstructor config f where
+    GetConfigByConstructor (f x ': xs) f = x
+    GetConfigByConstructor (x ': xs) f = GetConfigByConstructor xs f
 
 instance Show (Config '[]) where
   show EmptyConfig = "EmptyConfig"

@@ -43,11 +43,6 @@ module Servant.Server
   , NamedConfig(..)
   , descendIntoNamedConfig
 
-  -- * General Authentication
-  , AuthHandler(unAuthHandler)
-  , AuthReturnType
-  , mkAuthHandler
-
   -- * Basic Authentication
   , BasicAuthCheck(BasicAuthCheck, unBasicAuthCheck)
   , BasicAuthResult(..)
@@ -123,7 +118,7 @@ import           Servant.Server.Internal.Enter
 -- > main = Network.Wai.Handler.Warp.run 8080 app
 --
 serve :: (HasServer layout config)
-    => Proxy layout -> Config config -> Server layout -> Application
+    => Proxy layout -> Config config -> Server layout config -> Application
 serve p config server = toApplication (runRouter (route p config d))
   where
     d = Delayed r r r r (\ _ _ _ -> Route server)

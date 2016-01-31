@@ -23,17 +23,10 @@ import Servant.Server.Internal.ServantErr
 
 -- * General Auth
 
--- | Specify the type of data returned after we've authenticated a request.
--- quite often this is some `User` datatype.
-type family AuthReturnType a :: *
-
 -- | Handlers for AuthProtected resources
 newtype AuthHandler r usr = AuthHandler
   { unAuthHandler :: r -> ExceptT ServantErr IO usr }
-  deriving (Generic, Typeable)
-
-mkAuthHandler :: (r -> ExceptT ServantErr IO usr) -> AuthHandler r usr
-mkAuthHandler = AuthHandler
+  deriving (Generic, Typeable, Functor)
 
 -- * Basic Auth
 
