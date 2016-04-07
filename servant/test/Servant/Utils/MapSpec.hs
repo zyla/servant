@@ -1,9 +1,11 @@
+{-# LANGUAGE TypeOperators #-}
 
 module Servant.Utils.MapSpec where
 
+import           Data.Functor.Identity
+import           Data.Proxy
 import           Test.Hspec
 
-import           Data.Functor.Identity
 import           Servant.API
 import           Servant.Utils.Map
 
@@ -22,12 +24,15 @@ spec = do
           convert :: (Int -> a) -> Identity a
           convert f = Identity $ f 42
 
-          foo' :: Bool -> Identity String
-          bar' :: () -> String -> Identity Double
-          foo' :<|> bar' = mapLeaves convert foobar
+          foo' :: Bool -> String
+          bar' :: () -> String -> Double
 
-      foo' True `shouldBe` Identity "42"
-      bar' () "" `shouldBe` Identity (42 :: Double)
+          proxy :: Proxy ((Bool -> Identity String) :<|> (() -> String -> Identity Double))
+          proxy = Proxy
+          foo' :<|> bar' = mapLeaves convert foobar proxy
+
+      foo' True `shouldBe` "42"
+      bar' () "" `shouldBe` (42 :: Double)
 
   describe "stripIdentity" $ do
     it "works" $ do

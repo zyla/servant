@@ -1,25 +1,31 @@
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE RankNTypes             #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE TypeOperators          #-}
 module Servant.Utils.Map (mapLeaves, StripIdentity(..)) where
 
 import           Data.Functor.Identity
+import           Data.Proxy
 
 import           Servant.API
 
+mapLeaves :: forall s t a b . (Mappable s t a b, StripIdentity t) =>
+  (forall x . a x -> b x) -> s -> Proxy t -> Stripped t
+mapLeaves f s _ = stripIdentity $ (mapLeavesId f s :: t)
+
 class Mappable s t a b where
-  mapLeaves :: (forall x . a x -> b x) -> s -> t
+  mapLeavesId :: (forall x . a x -> b x) -> s -> t
 
 instance (Mappable left left' a b, Mappable right right' a b) => Mappable (left :<|> right) (left' :<|> right') a b where
-  mapLeaves f (left :<|> right) = mapLeaves f left :<|> mapLeaves f right
+  mapLeavesId f (left :<|> right) = mapLeavesId f left :<|> mapLeavesId f right
 
 instance Mappable s t a b => Mappable (arg -> s) (arg -> t) a b where
-  mapLeaves f s = mapLeaves f . s
+  mapLeavesId f s = mapLeavesId f . s
 
 instance Mappable (a x) (b x) a b where
-  mapLeaves f a = f a
+  mapLeavesId f a = f a
 
 class StripIdentity a where
   type Stripped a :: *
