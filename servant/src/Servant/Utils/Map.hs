@@ -1,14 +1,16 @@
 {-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE RankNTypes             #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE UndecidableInstances   #-}
 module Servant.Utils.Map where
 
 import           Servant.API
 
-class HasArgument arg s t where
+class HasArgument arg s t | arg s -> t where
   supplyArgument :: arg -> s -> t
 
 instance (HasArgument arg left left', HasArgument arg right right') =>
