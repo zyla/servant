@@ -45,6 +45,7 @@ library
     Servant.API.Verbs
     Servant.API.WithNamedContext
     Servant.Utils.Links
+    Servant.Utils.Map
   build-depends:
       base >= 4.7 && < 4.9
     , base-compat >= 0.9

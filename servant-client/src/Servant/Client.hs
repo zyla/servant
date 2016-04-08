@@ -18,6 +18,7 @@ module Servant.Client
   ( AuthClientData
   , AuthenticateReq(..)
   , client
+  , staticClient
   , HasClient(..)
   , ClientM
   , mkAuthenticateReq
@@ -43,6 +44,7 @@ import           Servant.Client.Experimental.Auth
 import           Servant.Common.BaseUrl
 import           Servant.Common.BasicAuth
 import           Servant.Common.Req
+import           Servant.Utils.Map
 
 -- * Accessing APIs as a Client
 
@@ -59,6 +61,10 @@ import           Servant.Common.Req
 -- > (getAllBooks :<|> postNewBook) = client myApi
 client :: HasClient layout => Proxy layout -> Client layout
 client p = clientWithRoute p defReq
+
+staticClient :: (HasClient layout, HasArgument BaseUrl (Client layout) result) =>
+  Proxy layout -> BaseUrl -> result
+staticClient p baseUrl = supplyArgument baseUrl $ client p
 
 -- | This class lets us define how each API combinator
 -- influences the creation of an HTTP request. It's mostly
