@@ -10,7 +10,7 @@ import           Servant.Utils.Map
 spec :: Spec
 spec = do
   describe "supplyArgument" $ do
-{-    it "supplies an argument to every route" $ do
+    it "supplies an argument to every route" $ do
       let foo :: Bool -> Int -> String
           foo _ b = show b
 
@@ -25,7 +25,7 @@ spec = do
 
       foo' True `shouldBe` "42"
       bar' () "" `shouldBe` (42 :: Double)
--}
+
     it "" $ do
       let foo :: Int -> String
           foo = show

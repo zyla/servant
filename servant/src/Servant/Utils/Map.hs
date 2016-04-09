@@ -10,7 +10,7 @@ module Servant.Utils.Map where
 
 import           Servant.API
 
-class HasArgument arg s t | arg s -> t where
+class HasArgument arg s t where
   supplyArgument :: arg -> s -> t
 
 instance (HasArgument arg left left', HasArgument arg right right') =>
@@ -26,3 +26,6 @@ instance HasArgument arg rest rest' =>
 
 instance HasArgument arg (arg -> result) result where
   supplyArgument arg f = f arg
+
+instance HasArgument arg result result where
+  supplyArgument _ = id
