@@ -22,7 +22,7 @@ instance (HasArgument arg left left', HasArgument arg right right') =>
 instance HasArgument arg rest rest' =>
   HasArgument arg (a -> rest) (a -> rest') where
 
-  supplyArgument arg f = \ a -> supplyArgument arg (f a)
+  supplyArgument arg f = supplyArgument arg . f
 
 instance HasArgument arg (arg -> result) result where
   supplyArgument arg f = f arg
