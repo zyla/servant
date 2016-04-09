@@ -299,7 +299,31 @@ sucessSpec = beforeAll (startWaiApp server) $ afterAll endWaiApp $ do
     describe "staticClient" $ do
       it "allows to pass in the BaseUrl to staticClient" $ \(_, baseUrl) -> do
         let getGet' :: C.Manager -> ClientM Person
-            getGet' :<|> _ = staticClient api baseUrl
+            getDeleteEmpty' :: C.Manager ->  SCR.ClientM NoContent
+            getCapture' :: String -> C.Manager ->  SCR.ClientM Person
+            getBody' :: Person -> C.Manager ->  SCR.ClientM Person
+            getQueryParam' :: Maybe String -> C.Manager ->  SCR.ClientM Person
+            getQueryParams' :: [String] -> C.Manager ->  SCR.ClientM [Person]
+            getQueryFlag' :: Bool -> C.Manager ->  SCR.ClientM Bool
+            getRawSuccess' :: HTTP.Method -> C.Manager -> SCR.ClientM (Int, BS.ByteString, MediaType, [HTTP.Header], C.Response BS.ByteString)
+            getRawFailure' :: HTTP.Method -> C.Manager -> SCR.ClientM (Int, BS.ByteString, MediaType, [HTTP.Header], C.Response BS.ByteString)
+            getMultiple' :: String -> Maybe Int -> Bool -> [(String, [Rational])] -> C.Manager
+                        -> SCR.ClientM (String, Maybe Int, Bool, [(String, [Rational])])
+            getRespHeaders' :: C.Manager -> SCR.ClientM (Headers TestHeaders Bool)
+            getDeleteContentType' :: C.Manager -> SCR.ClientM NoContent
+
+            getGet' :<|>
+              getDeleteEmpty' :<|>
+              getCapture' :<|>
+              getBody' :<|>
+              getQueryParam' :<|>
+              getQueryParams' :<|>
+              getQueryFlag' :<|>
+              getRawSuccess' :<|>
+              getRawFailure' :<|>
+              getMultiple' :<|>
+              getRespHeaders'  :<|>
+              getDeleteContentType' = staticClient api baseUrl
         (left show <$> runExceptT (getGet' manager)) `shouldReturn` Right alice
 
 wrappedApiSpec :: Spec
