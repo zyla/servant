@@ -26,6 +26,3 @@ instance HasArgument arg rest rest' =>
 
 instance HasArgument arg (arg -> result) result where
   supplyArgument arg f = f arg
-
-instance HasArgument arg result result where
-  supplyArgument _ = id
