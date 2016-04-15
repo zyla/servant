@@ -33,27 +33,24 @@ import Web.HttpApiData
 
 data ServantError
   = FailureResponse
-    { responseStatus            :: Status
-    , responseContentType       :: MediaType
-    , responseBody              :: ByteString
+    { _responseStatus            :: Status
+    , _responseContentType       :: MediaType
+    , _responseBody              :: ByteString
     }
   | DecodeFailure
-    { decodeError               :: String
-    , responseContentType       :: MediaType
-    , responseBody              :: ByteString
+    { _decodeError               :: String
+    , _responseContentType       :: MediaType
+    , _responseBody              :: ByteString
     }
   | UnsupportedContentType
-    { responseContentType       :: MediaType
-    , responseBody              :: ByteString
+    { _responseContentType       :: MediaType
+    , _responseBody              :: ByteString
     }
   | InvalidContentTypeHeader
-    { responseContentTypeHeader :: ByteString
-    , responseBody              :: ByteString
+    { _responseContentTypeHeader :: ByteString
+    , _responseBody              :: ByteString
     }
-  | ConnectionError
-    { connectionError           :: SomeException
-    }
-  deriving (Show, Typeable)
+  deriving (Show, Eq, Typeable)
 
 instance Exception ServantError
 
@@ -134,24 +131,19 @@ performRequest reqMethod req reqHost manager = do
                                , checkStatus = \ _status _headers _cookies -> Nothing
                                }
 
-  eResponse <- liftIO $ catchConnectionError $ Client.httpLbs request manager
-  case eResponse of
-    Left err ->
-      throwE . ConnectionError $ SomeException err
-
-    Right response -> do
-      let status = Client.responseStatus response
-          body = Client.responseBody response
-          hdrs = Client.responseHeaders response
-          status_code = statusCode status
-      ct <- case lookup "Content-Type" $ Client.responseHeaders response of
-                 Nothing -> pure $ "application"//"octet-stream"
-                 Just t -> case parseAccept t of
-                   Nothing -> throwE $ InvalidContentTypeHeader (cs t) body
-                   Just t' -> pure t'
-      unless (status_code >= 200 && status_code < 300) $
-        throwE $ FailureResponse status ct body
-      return (status_code, body, ct, hdrs, response)
+  response <- liftIO $ Client.httpLbs request manager
+  let status = Client.responseStatus response
+      body = Client.responseBody response
+      hdrs = Client.responseHeaders response
+      status_code = statusCode status
+  ct <- case lookup "Content-Type" $ Client.responseHeaders response of
+             Nothing -> pure $ "application"//"octet-stream"
+             Just t -> case parseAccept t of
+               Nothing -> throwE $ InvalidContentTypeHeader (cs t) body
+               Just t' -> pure t'
+  unless (status_code >= 200 && status_code < 300) $
+    throwE $ FailureResponse status ct body
+  return (status_code, body, ct, hdrs, response)
 
 
 performRequestCT :: MimeUnrender ct result =>
@@ -171,8 +163,3 @@ performRequestNoBody :: Method -> Req -> BaseUrl -> Manager
 performRequestNoBody reqMethod req reqHost manager = do
   (_status, _body, _ct, hdrs, _response) <- performRequest reqMethod req reqHost manager
   return hdrs
-
-catchConnectionError :: IO a -> IO (Either ServantError a)
-catchConnectionError action =
-  catch (Right <$> action) $ \e ->
-    pure . Left . ConnectionError $ SomeException (e :: HttpException)
