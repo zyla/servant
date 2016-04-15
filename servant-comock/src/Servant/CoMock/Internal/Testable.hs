@@ -1,23 +1,35 @@
+-- | This module contains QuickCheck-related logic.
 module Servant.CoMock.Internal.Testable where
 
-import Control.Monad.Except
-import Test.QuickCheck (Arbitrary(..), discard)
-import Test.QuickCheck.Property (Testable(..), forAllShrink, ioProperty, (.&.))
-import Servant.Client (ServantError(..))
-import Servant.API
+import           Control.Concurrent.MVar  (MVar, modifyMVar_, newMVar, readMVar)
+import           Control.Monad.Except
+import           GHC.Generics             (Generic)
+import           Network.HTTP.Client      (Request, RequestBody (..),
+                                           requestBody)
+import           Servant.API
+import           Servant.Client           (ServantError (..))
+import           System.IO.Unsafe         (unsafePerformIO)
+import           Test.QuickCheck          (Arbitrary (..), discard)
+import           Test.QuickCheck.Property (Testable (..), forAllShrink,
+                                           ioProperty, (.&.))
 
 import Servant.CoMock.Internal.Predicates
 
-type ServantRes a = ExceptT ServantError IO a
 
+-- * ShouldMatch
 
 -- | Two corresponding client functions. Used for checking that APIs match.
 data ShouldMatch a = ShouldMatch a a
+  deriving (Eq, Show, Read, Generic)
 
 instance (Show a, Eq a) => Testable (ShouldMatch (ServantRes a)) where
     property (ShouldMatch e1 e2) = ioProperty $ do
         e1' <- runExceptT e1
         e2' <- runExceptT e2
+        modifyMVar_ currentReq $ \x -> case x of
+          Nothing      -> error "impossible"
+          Just (x', _) -> return $ Just (x', "LHS:\n" ++ show e1'
+                                        ++ "\nRHS:\n" ++ show e2')
         return $ e1' == e2'
 
 instance (Arbitrary a, Show a, Testable (ShouldMatch b))
@@ -30,6 +42,7 @@ instance (Testable (ShouldMatch a), Testable (ShouldMatch b))
     property (ShouldMatch (a1 :<|> b1) (a2 :<|> b2))
       = property (ShouldMatch a1 a2) .&. property (ShouldMatch b1 b2)
 
+-- * ShouldSatisfy
 
 data ShouldSatisfy filter expect a = ShouldSatisfy
   { ssVal :: a
@@ -41,6 +54,9 @@ instance (Show a, Eq a, HasPredicate expect (Either ServantError a))
       => Testable (ShouldSatisfy filter expect (ServantRes a)) where
     property (ShouldSatisfy a _ e) = ioProperty $ do
         a' <- runExceptT a
+        modifyMVar_ currentReq $ \x -> case x of
+          Nothing      -> error "impossible"
+          Just (x', _) -> return $ Just (x', show a')
         return $ getPredicate e a'
 
 instance ( Arbitrary a, Show a, Testable (ShouldSatisfy filter expect b)
@@ -55,3 +71,22 @@ instance ( Testable (ShouldSatisfy filter expect a)
       => Testable (ShouldSatisfy filter expect (a :<|> b)) where
     property (ShouldSatisfy (a :<|> b) f e)
       = property (ShouldSatisfy a f e) .&. property (ShouldSatisfy b f e)
+
+-- * Utils
+
+type ServantRes a = ExceptT ServantError IO a
+
+-- Used to store the current request and response so that in case of failure we
+-- have the failing test in a user-friendly form.
+currentReq :: MVar (Maybe (Request, String))
+currentReq = unsafePerformIO $ newMVar Nothing
+{-# NOINLINE currentReq #-}
+
+prettyErr :: IO String
+prettyErr = do
+    Just (req, resp) <- readMVar currentReq
+    return $ show req ++ "Body:\n" ++ showReqBody (requestBody req)
+          ++ "\n\nResponse:\n" ++ resp
+  where
+    showReqBody (RequestBodyLBS x) = show x
+    showReqBody _                  = error "expecting RequestBodyLBS"

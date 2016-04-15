@@ -1,6 +1,6 @@
 name:                servant-comock
 version:             0.5.0.0
-synopsis:            QuickCheck servant APIs
+synopsis:            QuickCheck entire APIs
 description:
  This packages provides QuickCheck properties that across a whole API.
 
@@ -12,14 +12,21 @@ category:            Web
 build-type:          Simple
 cabal-version:       >=1.10
 
+flag long-tests
+  description: Run more QuickCheck tests
+  default:     False
+
 library
   exposed-modules:     Servant.CoMock
                      , Servant.CoMock.Internal
+                     , Servant.CoMock.Internal.Benchmarking
                      , Servant.CoMock.Internal.Predicates
                      , Servant.CoMock.Internal.Testable
                      , Servant.CoMock.Internal.CoMock
   build-depends:       base >=4.8 && <4.9
                      , QuickCheck == 2.8.*
+                     , bytestring == 0.10.*
+                     , aeson > 0.10 && < 0.12
                      , mtl == 2.2.*
                      , http-client == 0.4.*
                      , http-types == 0.9.*
@@ -27,6 +34,8 @@ library
                      , servant-server == 0.5.*
                      , servant == 0.5.*
                      , warp >= 3.2.4 && < 3.3
+                     , process == 1.2.*
+                     , temporary == 1.2.*
                      , hspec
   hs-source-dirs:      src
   default-extensions:  TypeOperators
@@ -37,11 +46,13 @@ library
                      , MultiParamTypeClasses
                      , DeriveFunctor
                      , RankNTypes
+                     , ConstraintKinds
+                     , DeriveGeneric
   default-language:    Haskell2010
 
 test-suite spec
   type:                exitcode-stdio-1.0
-  ghc-options:         -Wall
+  ghc-options:         -Wall -threaded
   default-language:    Haskell2010
   hs-source-dirs:      test
   main-is:             Spec.hs
@@ -62,6 +73,15 @@ test-suite spec
   if flag(long-tests)
       cpp-options: -DLONG_TESTS
 
-flag long-tests
-  description: Run more QuickCheck tests
-  default:     False
+-- test-suite doctests
+--   default-language:    Haskell2010
+--   type:                exitcode-stdio-1.0
+--   ghc-options:         -threaded
+--   main-is:             Doctest.hs
+--   hs-source-dirs:      test
+--   build-depends:       base >4 && <5
+--                      , doctest
+--                      , filemanip
+--                      , directory
+--                      , filepath
+--   HS-Source-Dirs:      test

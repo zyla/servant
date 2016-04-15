@@ -1,25 +1,36 @@
+-- | This module contains wrappers around lower-level functionality.
 module Servant.CoMock.Internal.CoMock where
 
-import Data.Proxy (Proxy)
-import Control.Concurrent.MVar (MVar, newMVar, readMVar, modifyMVar_)
-import Test.QuickCheck (Property, property, stdArgs, Testable, Args(..), quickCheckWithResult, Result(..))
-import System.IO.Unsafe (unsafePerformIO)
-import Servant.Client (HasClient, BaseUrl, client, Client)
-import Network.HTTP.Client (Manager, newManager, defaultManagerSettings)
-import Network.Wai.Handler.Warp (withApplication)
-import Test.Hspec (Expectation, shouldSatisfy, expectationFailure)
-import Servant.Client (BaseUrl(..), Scheme(..))
-import Servant (serveWithContext, Server, HasServer, Context, serve)
-import Network.HTTP.Client (Request, managerModifyRequest)
+import           Control.Concurrent.MVar  (modifyMVar_, readMVar)
+import           Control.Monad            (replicateM_)
+import           Data.Proxy               (Proxy)
+import           Data.Void                (Void)
+import           Network.HTTP.Client      (Manager, defaultManagerSettings,
+                                           newManager)
+import           Network.HTTP.Client      (managerModifyRequest, getUri)
+import           Network.Wai.Handler.Warp (withApplication)
+import           Servant                  (HasServer, Server, serve)
+import           Servant.Client           (BaseUrl (..), Client, HasClient,
+                                           Scheme (..), ServantError, client)
+import           System.IO                (hPutStrLn)
+import           System.IO.Temp           (withSystemTempFile)
+import           System.Process           (callCommand)
+import           Test.Hspec               (Expectation, expectationFailure)
+import           Test.QuickCheck          (Args (..), Property, Result (..),
+                                           Testable, property,
+                                           quickCheckWithResult, stdArgs)
 
 import Servant.CoMock.Internal.Testable
 import Servant.CoMock.Internal.Predicates
+import Servant.CoMock.Internal.Benchmarking
+
 
 -- | Start a servant application on an open port, run the provided function,
 -- then stop the application.
-withServantServer :: HasServer a '[] => Proxy a -> Server a -> (BaseUrl -> IO r) -> IO r
+withServantServer :: HasServer a '[] => Proxy a -> IO (Server a)
+  -> (BaseUrl -> IO r) -> IO r
 withServantServer api server t
-  = withApplication (return $ serve api server) $ \port ->
+  = withApplication (return . serve api =<< server) $ \port ->
       t (BaseUrl Http "localhost" port "")
 
 -- | A QuickCheck 'Property' that randomly generates arguments (captures, query
@@ -40,17 +51,26 @@ serversEqualProperty api mgr burl1 burl2 = property $ ShouldMatch c1 c2
   where c1 = client api burl1 mgr
         c2 = client api burl2 mgr
 
--- | Check that the two servers at the provided @BaseUrl@s behave identically.
+-- | Check that the two servers running under the provided @BaseUrl@s behave
+-- identically by randomly generating arguments (captures, query params, request bodies,
+-- headers, etc.) expected by the server. If, given the same request, the
+-- response is not the same (according to the definition of @==@ for the return
+-- datatype), the 'Expectation' fails, printing the counterexample.
 --
--- As with @serversEqualProperty@, non-determinism in the servers will likely
--- result in failures that may not be significant.
+-- The @Int@ argument specifies maximum number of test cases to generate and
+-- run.
+--
+-- Evidently, if the behaviour of the server is expected to be
+-- non-deterministic,  this function may produce spurious failures.
 serversEqual :: (HasClient a, Testable (ShouldMatch (Client a)))
     => Proxy a -> BaseUrl -> BaseUrl -> Int -> Expectation
 serversEqual api burl1 burl2 tries = do
-    mgr <- newManager defaultManagerSettings
+    mgr <- managerWithStoredReq
     let args = stdArgs { chatty = False, maxSuccess = tries }
     res <- quickCheckWithResult args $ serversEqualProperty api mgr burl1 burl2
-    res `shouldSatisfy` isSuccess
+    case res of
+      Success _ _ _ -> return ()
+      _             -> prettyErr >>= expectationFailure
 
 
 serverSatisfiesProperty :: (HasClient a, Testable (ShouldSatisfy filt exp (Client a)))
@@ -58,6 +78,7 @@ serverSatisfiesProperty :: (HasClient a, Testable (ShouldSatisfy filt exp (Clien
 serverSatisfiesProperty api mgr burl filters expect = do
     property $ ShouldSatisfy (client api burl mgr) filters expect
 
+-- | Check that a server's responses satisfies certain properties.
 serverSatisfies :: (HasClient a, Testable (ShouldSatisfy filt exp (Client a)))
     => Proxy a -> BaseUrl -> Predicates filt -> Predicates exp
     -> Int -> Expectation
@@ -65,42 +86,57 @@ serverSatisfies api burl filters expect tries = do
     mgr <- managerWithStoredReq
     let args = stdArgs { chatty = False, maxSuccess = tries }
     res <- quickCheckWithResult args $ serverSatisfiesProperty api mgr burl filters expect
-    if isSuccess res
-      then return ()
-      else do
-        Just r <- readMVar currentReq
-        expectationFailure $ show r ++ "\nResponse:\n" ++ show res
+    case res of
+      Success _ _ _ -> return ()
+      GaveUp n _ _  -> expectationFailure $ "Gave up after " ++ show n ++ " tests"
+      _             -> prettyErr >>= expectationFailure
 
-isSuccess (Success _ _ _) = True
-isSuccess _               = False
-
--- | Check that the two servers at the provided @BaseUrl@s do not behave identically.
+-- | Check that the two servers running under the provided @BaseUrl@s do not
+-- behave identically.
 --
 -- As with @serversEqualProperty@, non-determinism in the servers will likely
 -- result in failures that may not be significant.
 serversUnequal :: (HasClient a, Testable (ShouldMatch (Client a)))
     => Proxy a -> BaseUrl -> BaseUrl -> Int -> Expectation
 serversUnequal api burl1 burl2 tries = do
-    mgr <- newManager defaultManagerSettings
+    mgr <- managerWithStoredReq
     let args = stdArgs { chatty = False, maxSuccess = tries }
     res <- quickCheckWithResult args $ serversEqualProperty api mgr burl1 burl2
-    res `shouldSatisfy` not . isSuccess
+    case res of
+      Success _ _ _ -> prettyErr >>= expectationFailure
+      _             -> return ()
 
 serverDoesntSatisfy :: (HasClient a, Testable (ShouldSatisfy filt exp (Client a)))
     => Proxy a -> BaseUrl -> Predicates filt -> Predicates exp
     -> Int -> Expectation
 serverDoesntSatisfy api burl filters expect tries = do
-    mgr <- newManager defaultManagerSettings
+    mgr <- managerWithStoredReq
     let args = stdArgs { chatty = False, maxSuccess = tries }
     res <- quickCheckWithResult args $ serverSatisfiesProperty api mgr burl filters expect
-    res `shouldSatisfy` not . isSuccess
+    case res of
+      Success _ _ _ -> prettyErr >>= expectationFailure
+      _             -> return ()
 
--- Used to store the current request being made so that in case of failure we
--- have the failing test in a user-friendly form.
-currentReq :: MVar (Maybe Request)
-currentReq = unsafePerformIO $ newMVar Nothing
-{-# NOINLINE currentReq #-}
+serverBenchmark :: (HasClient a, Testable (ShouldSatisfy '[] '[Either ServantError Void] (Client a)))
+    => Proxy a -> BaseUrl -> BenchOptions -> IO ()
+serverBenchmark api burl opts = replicateM_ (noOfTests opts) go
+  where
+    go = do
+      serverSatisfies api burl emptyPredicates (addLeftPredicate (const True) emptyPredicates) 1
+      Just (r, _) <- readMVar currentReq
+      withSystemTempFile "wrkscript.lua" $ \f h -> do
+        let url = show $ getUri r
+            s   = mkScript $ reqToWrk r
+            c   = "wrk -c" ++ show (connections opts)
+               ++ " -d" ++ show (duration opts) ++ "s "
+               ++ " --script \"" ++ f ++ "\" "
+               ++ url
+        putStrLn $ "Calling command: " ++ c
+        putStrLn $ "With script:\n" ++ s ++ "\n\n"
+        hPutStrLn h s
+        callCommand c
 
 managerWithStoredReq :: IO Manager
 managerWithStoredReq = newManager defaultManagerSettings { managerModifyRequest = go }
-  where go req = modifyMVar_ currentReq (const $ return $ Just req) >> return req
+  where go req = modifyMVar_ currentReq (addReq req) >> return req
+        addReq req _ = return $ Just (req, "")
