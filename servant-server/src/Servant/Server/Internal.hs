@@ -31,7 +31,7 @@ import           Data.String                (fromString)
 import           Data.String.Conversions    (cs, (<>))
 import           Data.Typeable
 import           GHC.TypeLits               (KnownNat, KnownSymbol, natVal,
-                                             symbolVal)
+                                             symbolVal, TypeError, ErrorMessage(..))
 import           Network.HTTP.Types         hiding (Header, ResponseHeaders)
 import           Network.Socket             (SockAddr)
 import           Network.Wai                (Application, Request, Response,
@@ -487,6 +487,10 @@ instance HasServer api context => HasServer (HttpVersion :> api) context where
 
   route Proxy context subserver =
     route (Proxy :: Proxy api) context (passToServer subserver httpVersion)
+
+
+instance HasServer (a -> b) context where
+  type ServerT (a -> b) m =  TypeError ('Text "You used '->' in an API definition. And you probably meant ':>'")
 
 -- | Basic Authentication
 instance ( KnownSymbol realm
