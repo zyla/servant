@@ -49,7 +49,8 @@ import           Servant.API                ((:<|>) (..), (:>), AuthProtect,
 import           Servant.API.Internal.Test.ComprehensiveAPI
 import           Servant.Server             (Server, Handler, err401, err403,
                                              err404, serve, serveWithContext,
-                                             Context((:.), EmptyContext))
+                                             Context((:.), EmptyContext), defaultContext,
+                                             DefaultContext )
 import           Test.Hspec                 (Spec, context, describe, it,
                                              shouldBe, shouldContain)
 import qualified Test.Hspec.Wai             as THW
@@ -70,8 +71,8 @@ import           Servant.Server.Internal.Context
 -- This declaration simply checks that all instances are in place.
 _ = serveWithContext comprehensiveAPI comprehensiveApiContext
 
-comprehensiveApiContext :: Context '[NamedContext "foo" '[]]
-comprehensiveApiContext = NamedContext EmptyContext :. EmptyContext
+comprehensiveApiContext :: Context '[NamedContext "foo" '[DefaultContext], DefaultContext]
+comprehensiveApiContext = NamedContext defaultContext :. defaultContext
 
 -- * Specs
 
@@ -591,13 +592,13 @@ basicAuthServer =
   const (return jerry) :<|>
   (\ _ respond -> respond $ responseLBS imATeaPot418 [] "")
 
-basicAuthContext :: Context '[ BasicAuthCheck () ]
+basicAuthContext :: Context '[ BasicAuthCheck (), DefaultContext ]
 basicAuthContext =
   let basicHandler = BasicAuthCheck $ \(BasicAuthData usr pass) ->
         if usr == "servant" && pass == "server"
           then return (Authorized ())
           else return Unauthorized
-  in basicHandler :. EmptyContext
+  in basicHandler :. defaultContext
 
 basicAuthSpec :: Spec
 basicAuthSpec = do
@@ -638,13 +639,13 @@ genAuthServer = const (return tweety)
 
 type instance AuthServerData (AuthProtect "auth") = ()
 
-genAuthContext :: Context '[AuthHandler Request ()]
+genAuthContext :: Context '[AuthHandler Request (), DefaultContext]
 genAuthContext =
   let authHandler = \req -> case lookup "Auth" (requestHeaders req) of
         Just "secret" -> return ()
         Just _ -> throwE err403
         Nothing -> throwE err401
-  in mkAuthHandler authHandler :. EmptyContext
+  in mkAuthHandler authHandler :. defaultContext
 
 genAuthSpec :: Spec
 genAuthSpec = do

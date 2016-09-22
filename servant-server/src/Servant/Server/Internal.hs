@@ -23,6 +23,7 @@ module Servant.Server.Internal
   ) where
 
 import           Control.Monad.Trans        (liftIO)
+import           Blaze.ByteString.Builder   (toByteString)
 import qualified Data.ByteString            as B
 import qualified Data.ByteString.Char8      as BC8
 import qualified Data.ByteString.Lazy       as BL
@@ -33,6 +34,7 @@ import           Data.Typeable
 import           GHC.TypeLits               (KnownNat, KnownSymbol, natVal,
                                              symbolVal)
 import           Network.HTTP.Types         hiding (Header, ResponseHeaders)
+import qualified Network.HTTP.Types         as HTTP
 import           Network.Socket             (SockAddr)
 import           Network.Wai                (Application, Request, Response,
                                              httpVersion, isSecure,
@@ -46,6 +48,7 @@ import           Web.HttpApiData            (FromHttpApiData, parseHeaderMaybe,
                                              parseQueryParamMaybe,
                                              parseUrlPieceMaybe,
                                              parseUrlPieces)
+import           Web.Cookie                  (renderSetCookie, SetCookie)
 import           Servant.API                 ((:<|>) (..), (:>), BasicAuth, Capture,
                                               CaptureAll, Verb,
                                               ReflectMethod(reflectMethod),
@@ -200,10 +203,10 @@ acceptCheck proxy accH
   | otherwise                                  = delayedFail err406
 
 methodRouter :: (AllCTRender ctypes a)
-             => Method -> Proxy ctypes -> Status
+             => Method -> Proxy ctypes -> Status -> [HTTP.Header]
              -> Delayed env (Handler a)
              -> Router env
-methodRouter method proxy status action = leafRouter route'
+methodRouter method proxy status headers action = leafRouter route'
   where
     route' env request respond =
           let accH = fromMaybe ct_wildcard $ lookup hAccept $ requestHeaders request
@@ -211,7 +214,7 @@ methodRouter method proxy status action = leafRouter route'
                                `addAcceptCheck` acceptCheck proxy accH
                        ) env request respond $ \ output -> do
                let handleA = handleAcceptH proxy (AcceptHeader accH) output
-               processMethodRouter handleA status method Nothing request
+               processMethodRouter handleA status method (Just headers) request
 
 methodRouterHeaders :: (GetHeaders (Headers h v), AllCTRender ctypes v)
                     => Method -> Proxy ctypes -> Status
@@ -230,13 +233,18 @@ methodRouterHeaders method proxy status action = leafRouter route'
 
 instance OVERLAPPABLE_
          ( AllCTRender ctypes a, ReflectMethod method, KnownNat status
+         , HasContextEntry context [SetCookie]
          ) => HasServer (Verb method status ctypes a) context where
 
   type ServerT (Verb method status ctypes a) m = m a
 
-  route Proxy _ = methodRouter method (Proxy :: Proxy ctypes) status
+  route Proxy context = methodRouter method (Proxy :: Proxy ctypes) status headers
     where method = reflectMethod (Proxy :: Proxy method)
           status = toEnum . fromInteger $ natVal (Proxy :: Proxy status)
+          cookies = getContextEntry context
+          headers = case cookies of
+            [] -> []
+            xs -> [("Set-Cookie", toByteString $ foldMap renderSetCookie xs)]
 
 instance OVERLAPPING_
          ( AllCTRender ctypes a, ReflectMethod method, KnownNat status

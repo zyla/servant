@@ -14,6 +14,7 @@ module Servant.Server.Internal.Context where
 
 import           Data.Proxy
 import           GHC.TypeLits
+import           Web.Cookie (SetCookie)
 
 -- | 'Context's are used to pass values to combinators. (They are __not__ meant
 -- to be used to pass parameters to your handlers, i.e. they should not replace
@@ -36,6 +37,11 @@ data Context contextTypes where
     (:.) :: x -> Context xs -> Context (x ': xs)
 infixr 5 :.
 
+defaultContext :: Context '[DefaultContext]
+defaultContext = [] :. EmptyContext
+
+type DefaultContext = [SetCookie]
+
 instance Show (Context '[]) where
   show EmptyContext = "EmptyContext"
 instance (Show a, Show (Context as)) => Show (Context (a ': as)) where
@@ -51,13 +57,13 @@ instance (Eq a, Eq (Context as)) => Eq (Context (a ': as)) where
 -- | This class is used to access context entries in 'Context's. 'getContextEntry'
 -- returns the first value where the type matches:
 --
--- >>> getContextEntry (True :. False :. EmptyContext) :: Bool
+-- >>> getContextEntry (True :. False :. defaultContext) :: Bool
 -- True
 --
 -- If the 'Context' does not contain an entry of the requested type, you'll get
 -- an error:
 --
--- >>> getContextEntry (True :. False :. EmptyContext) :: String
+-- >>> getContextEntry (True :. False :. defaultContext) :: String
 -- ...
 -- ...No instance for (HasContextEntry '[] [Char])
 -- ...
@@ -88,14 +94,14 @@ data NamedContext (name :: Symbol) (subContext :: [*])
 -- This is how 'descendIntoNamedContext' works:
 --
 -- >>> :set -XFlexibleContexts
--- >>> let subContext = True :. EmptyContext
+-- >>> let subContext = True :. defaultContext
 -- >>> :type subContext
 -- subContext :: Context '[Bool]
--- >>> let parentContext = False :. (NamedContext subContext :: NamedContext "subContext" '[Bool]) :. EmptyContext
+-- >>> let parentContext = False :. (NamedContext subContext :: NamedContext "subContext" '[Bool]) :. defaultContext
 -- >>> :type parentContext
 -- parentContext :: Context '[Bool, NamedContext "subContext" '[Bool]]
 -- >>> descendIntoNamedContext (Proxy :: Proxy "subContext") parentContext :: Context '[Bool]
--- True :. EmptyContext
+-- True :. defaultContext
 descendIntoNamedContext :: forall context name subContext .
   HasContextEntry context (NamedContext name subContext) =>
   Proxy (name :: Symbol) -> Context context -> Context subContext

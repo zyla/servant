@@ -44,7 +44,9 @@ module Servant.Server
   , tweakResponse
 
   -- * Context
-  , Context(..)
+  , Context((:.), EmptyContext)
+  , defaultContext
+  , DefaultContext
   , HasContextEntry(getContextEntry)
   -- ** NamedContext
   , NamedContext(..)
@@ -130,8 +132,8 @@ import           Servant.Utils.Enter
 -- > main :: IO ()
 -- > main = Network.Wai.Handler.Warp.run 8080 app
 --
-serve :: (HasServer api '[]) => Proxy api -> Server api -> Application
-serve p = serveWithContext p EmptyContext
+serve :: (HasServer api '[DefaultContext]) => Proxy api -> Server api -> Application
+serve p = serveWithContext p defaultContext
 
 serveWithContext :: (HasServer api context)
     => Proxy api -> Context context -> Server api -> Application
@@ -189,8 +191,8 @@ serveWithContext p context server =
 -- that one takes precedence. If both parts fail, the \"better\" error
 -- code will be returned.
 --
-layout :: (HasServer api '[]) => Proxy api -> Text
-layout p = layoutWithContext p EmptyContext
+layout :: (HasServer api '[DefaultContext]) => Proxy api -> Text
+layout p = layoutWithContext p defaultContext
 
 -- | Variant of 'layout' that takes an additional 'Context'.
 layoutWithContext :: (HasServer api context)

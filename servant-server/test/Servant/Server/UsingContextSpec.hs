@@ -31,8 +31,8 @@ oneEntryApp :: Application
 oneEntryApp =
   serveWithContext (Proxy :: Proxy OneEntryAPI) context testServer
   where
-    context :: Context '[String]
-    context = "contextEntry" :. EmptyContext
+    context :: Context '[String, DefaultContext]
+    context = "contextEntry" :. defaultContext
 
 type OneEntryTwiceAPI =
   "foo" :> ExtractFromContext :> Get '[JSON] String :<|>
@@ -43,8 +43,8 @@ oneEntryTwiceApp = serveWithContext (Proxy :: Proxy OneEntryTwiceAPI) context $
   testServer :<|>
   testServer
   where
-    context :: Context '[String]
-    context = "contextEntryTwice" :. EmptyContext
+    context :: Context '[String, DefaultContext]
+    context = "contextEntryTwice" :. defaultContext
 
 -- * tests
 
@@ -71,7 +71,7 @@ injectApp = serveWithContext (Proxy :: Proxy InjectAPI) context $
   (\ s -> return s) :<|>
   (\ s -> return ("tagged: " ++ s))
   where
-    context = EmptyContext
+    context = defaultContext
 
 spec2 :: Spec
 spec2 = do
@@ -96,8 +96,8 @@ withBirdfaceApp = serveWithContext (Proxy :: Proxy WithBirdfaceAPI) context $
     context :: Context '[String, (NamedContext "sub" '[String])]
     context =
       "firstEntry" :.
-      (NamedContext ("secondEntry" :. EmptyContext)) :.
-      EmptyContext
+      (NamedContext ("secondEntry" :. defaultContext)) :.
+      defaultContext
 
 spec3 :: Spec
 spec3 = do
@@ -114,7 +114,7 @@ namedContextApp :: Application
 namedContextApp = serveWithContext (Proxy :: Proxy NamedContextAPI) context return
   where
     context :: Context '[NamedContext "sub" '[String]]
-    context = NamedContext ("descend" :. EmptyContext) :. EmptyContext
+    context = NamedContext ("descend" :. defaultContext) :. defaultContext
 
 spec4 :: Spec
 spec4 = do

@@ -50,8 +50,10 @@ library
       , aeson              >= 0.7  && < 1.1
       , attoparsec         >= 0.12 && < 0.14
       , base64-bytestring  >= 1.0  && < 1.1
+      , blaze-builder      >= 0.4  && < 0.5
       , bytestring         >= 0.10 && < 0.11
       , containers         >= 0.5  && < 0.6
+      , cookie             >= 0.4  && < 0.5
       , http-api-data      >= 0.3  && < 0.4
       , http-types         >= 0.8  && < 0.10
       , network-uri        >= 2.6  && < 2.7
