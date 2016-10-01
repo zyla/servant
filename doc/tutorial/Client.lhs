@@ -92,25 +92,15 @@ api = Proxy
 position :<|> hello :<|> marketing = client api
 ```
 
-As you can see in the code above, we just "pattern match our way" to these functions. If we try to derive less or more functions than there are endpoints in the API, we obviously get an error. The `BaseUrl` value there is just:
+`client api` returns client functions for our entire API, and those functions
+are combined with `:<|>`. Since our API has three endpoints, `client api` will
+have three functions, which we can pattern match on as above. You could say
+client "calculates" the correct type and number of client functions for the
+API type it is given (via a `Proxy`), as well as their implementation. If you
+try to retrieve more or fewer client functions, you'll get a type error.
 
-``` haskell ignore
--- | URI scheme to use
-data Scheme =
-    Http  -- ^ http://
-  | Https -- ^ https://
-  deriving
 
--- | Simple data type to represent the target of HTTP requests
---   for servant's automatically-generated clients.
-data BaseUrl = BaseUrl
-  { baseUrlScheme :: Scheme -- ^ URI scheme to use
-  , baseUrlHost :: String   -- ^ host (eg "haskell.org")
-  , baseUrlPort :: Int      -- ^ port (eg 80)
-  }
-```
-
-That's it. Let's now write some code that uses our client functions.
+Now let's write some code that uses our client functions.
 
 ``` haskell
 queries :: ClientM (Position, HelloMessage, Email)
