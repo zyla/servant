@@ -7,46 +7,41 @@
 
 module Servant.Common.Req where
 
+import Control.Exception
+import Control.Monad
+import Control.Monad.Catch (MonadThrow)
+import Control.Monad.IO.Class ()
+import Control.Monad.Reader
+import Control.Monad.Trans.Except
+import Data.ByteString.Lazy hiding (pack, filter, map, null, elem, any)
+import Data.Foldable (toList, any)
+import Data.Proxy
+import Data.String
+import Data.String.Conversions
+import Data.Text.Encoding
+import Data.Text (Text)
+import Data.Typeable
+import GHC.Generics
+import Network.HTTP.Client hiding (Proxy, path)
+import qualified Network.HTTP.Client as Client
+import Network.HTTP.Media
+import Network.HTTP.Types
+import qualified Network.HTTP.Types.Header   as HTTP
+import Network.URI hiding (path)
 import Prelude hiding (any)
+import Servant.API.ContentTypes
+import Servant.Common.BaseUrl
+import Web.HttpApiData
 
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative
 #endif
-import Control.Exception
-import Control.Monad
-import Control.Monad.Catch (MonadThrow)
-
-import Data.Foldable (toList, any)
 
 #if MIN_VERSION_mtl(2,2,0)
 import Control.Monad.Except (MonadError(..))
 #else
 import Control.Monad.Error.Class (MonadError(..))
 #endif
-import Control.Monad.Trans.Except
-
-
-import GHC.Generics
-import Control.Monad.IO.Class ()
-import Control.Monad.Reader
-import Data.ByteString.Lazy hiding (pack, filter, map, null, elem, any)
-import Data.String
-import Data.String.Conversions
-import Data.Proxy
-import Data.Text (Text)
-import Data.Text.Encoding
-import Data.Typeable
-import Network.HTTP.Media
-import Network.HTTP.Types
-import Network.HTTP.Client hiding (Proxy, path)
-import qualified Network.HTTP.Types.Header   as HTTP
-import Network.URI hiding (path)
-import Servant.API.ContentTypes
-import Servant.Common.BaseUrl
-
-import qualified Network.HTTP.Client as Client
-
-import Web.HttpApiData
 
 data ServantError
   = FailureResponse
