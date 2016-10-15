@@ -21,7 +21,7 @@ install:
   - (cd $HOME/.local/bin && wget https://zalora-public.s3.amazonaws.com/tinc && chmod +x tinc)
 
 script:
-  - if [ "$TRAVIS_EVENT_TYPE" = "cron" ] ; then ./scripts/ci-cron.sh ; else stack test --ghc-options=-Werror --no-terminal ; fi
+  - if [ "$TRAVIS_EVENT_TYPE" = "cron" ] ; then ./scripts/ci-cron.sh ; else ./scripts/ci.sh ; fi
 
 cache:
   directories:
