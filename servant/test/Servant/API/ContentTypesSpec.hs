@@ -51,47 +51,6 @@ spec = describe "Servant.API.ContentTypes" $ do
                 s          = "cheese" :: String
             badCharset s `shouldBe` Nothing
 
-    describe "The JSON Content-Type type" $ do
-        let p = Proxy :: Proxy JSON
-
-        it "handles whitespace at end of input" $ do
-            mimeUnrender p "[1] " `shouldBe` Right [1 :: Int]
-
-        it "handles whitespace at beginning of input" $ do
-            mimeUnrender p " [1] " `shouldBe` Right [1 :: Int]
-
-        it "does not like junk at end of input" $ do
-            mimeUnrender p "[1] this probably shouldn't work"
-              `shouldSatisfy` (isLeft :: Either a [Int] -> Bool)
-
-        it "has mimeUnrender reverse mimeRender for valid top-level json ([Int]) " $ do
-            property $ \x -> mimeUnrender p (mimeRender p x) == Right (x::[Int])
-
-        it "has mimeUnrender reverse mimeRender for valid top-level json " $ do
-            property $ \x -> mimeUnrender p (mimeRender p x) == Right (x::SomeData)
-
-    describe "The PlainText Content-Type type" $ do
-        let p = Proxy :: Proxy PlainText
-
-        it "has mimeUnrender reverse mimeRender (lazy Text)" $ do
-            property $ \x -> mimeUnrender p (mimeRender p x) == Right (x::TextL.Text)
-
-        it "has mimeUnrender reverse mimeRender (strict Text)" $ do
-            property $ \x -> mimeUnrender p (mimeRender p x) == Right (x::TextS.Text)
-
-    describe "The OctetStream Content-Type type" $ do
-        let p = Proxy :: Proxy OctetStream
-
-        it "is id (Lazy ByteString)" $ do
-            property $ \x -> mimeRender p x == (x :: BSL.ByteString)
-                && mimeUnrender p x == Right x
-
-        it "is fromStrict/toStrict (Strict ByteString)" $ do
-            property $ \x -> mimeRender p x == BSL.fromStrict (x :: ByteString)
-                && mimeUnrender p (BSL.fromStrict x) == Right x
-
-    describe "handleAcceptH" $ do
-
         it "returns Nothing if the 'Accept' header doesn't match" $ do
             handleAcceptH (Proxy :: Proxy '[JSON]) "text/plain" (3 :: Int)
                 `shouldSatisfy` isNothing
@@ -138,6 +97,46 @@ spec = describe "Servant.API.ContentTypes" $ do
             let val a b c i = handleAcceptH (Proxy :: Proxy '[OctetStream, JSON, PlainText])
                                             (acceptH a b c) (i :: Int)
             property $ \a b c i -> fst (fromJust $ val a b c i) == fst (highest a b c)
+
+
+    describe "The JSON Content-Type type" $ do
+        let p = Proxy :: Proxy JSON
+
+        it "handles whitespace at end of input" $ do
+            mimeUnrender p "[1] " `shouldBe` Right [1 :: Int]
+
+        it "handles whitespace at beginning of input" $ do
+            mimeUnrender p " [1] " `shouldBe` Right [1 :: Int]
+
+        it "does not like junk at end of input" $ do
+            mimeUnrender p "[1] this probably shouldn't work"
+              `shouldSatisfy` (isLeft :: Either a [Int] -> Bool)
+
+        it "has mimeUnrender reverse mimeRender for valid top-level json ([Int]) " $ do
+            property $ \x -> mimeUnrender p (mimeRender p x) == Right (x::[Int])
+
+        it "has mimeUnrender reverse mimeRender for valid top-level json " $ do
+            property $ \x -> mimeUnrender p (mimeRender p x) == Right (x::SomeData)
+
+    describe "The PlainText Content-Type type" $ do
+        let p = Proxy :: Proxy PlainText
+
+        it "has mimeUnrender reverse mimeRender (lazy Text)" $ do
+            property $ \x -> mimeUnrender p (mimeRender p x) == Right (x::TextL.Text)
+
+        it "has mimeUnrender reverse mimeRender (strict Text)" $ do
+            property $ \x -> mimeUnrender p (mimeRender p x) == Right (x::TextS.Text)
+
+    describe "The OctetStream Content-Type type" $ do
+        let p = Proxy :: Proxy OctetStream
+
+        it "is id (Lazy ByteString)" $ do
+            property $ \x -> mimeRender p x == (x :: BSL.ByteString)
+                && mimeUnrender p x == Right x
+
+        it "is fromStrict/toStrict (Strict ByteString)" $ do
+            property $ \x -> mimeRender p x == BSL.fromStrict (x :: ByteString)
+                && mimeUnrender p (BSL.fromStrict x) == Right x
 
     describe "handleCTypeH" $ do
 
