@@ -181,7 +181,7 @@ runClientM :: ClientM a -> ClientEnv -> IO (Either ServantError a)
 runClientM cm env = runExceptT $ (flip runReaderT env) $ runClientM' cm
 
 
-performRequest :: Method -> Req 
+performRequest :: Method -> Req
                -> ClientM ( Int, ByteString, MediaType
                           , [HTTP.Header], Response ByteString)
 performRequest reqMethod req = do
@@ -210,15 +210,15 @@ performRequest reqMethod req = do
         throwError $ FailureResponse status ct body
       return (status_code, body, ct, hdrs, response)
 
-performRequestCT :: MimeUnrender ct result => Proxy ct -> Method -> Req 
+performRequestCT :: MimeUnrender contentType result => Proxy contentType -> Method -> Req
     -> ClientM ([HTTP.Header], result)
-performRequestCT ct reqMethod req = do
-  let acceptCTS = contentTypes ct
-  (_status, respBody, respCT, hdrs, _response) <-
-    performRequest reqMethod (req { reqAccept = toList acceptCTS })
-  unless (any (matches respCT) acceptCTS) $ throwError $ UnsupportedContentType respCT respBody
-  case mimeUnrender ct respBody of
-    Left err -> throwError $ DecodeFailure err respCT respBody
+performRequestCT cType reqMethod req = do
+  let acceptContentTypes = contentTypes cType
+  (_status, respBody, respContentType, hdrs, _response) <-
+    performRequest reqMethod (req { reqAccept = toList acceptContentTypes })
+  unless (any (matches respContentType) acceptContentTypes) $ throwError $ UnsupportedContentType respContentType respBody
+  case mimeUnrender cType respBody of
+    Left err -> throwError $ DecodeFailure err respContentType respBody
     Right val -> return (hdrs, val)
 
 performRequestNoBody :: Method -> Req -> ClientM [HTTP.Header]
