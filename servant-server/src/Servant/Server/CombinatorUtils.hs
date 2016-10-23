@@ -5,9 +5,11 @@
 module Servant.Server.CombinatorUtils (
   RouteResult(..),
   argumentCombinator,
+  captureCombinator,
 ) where
 
 import           Data.Proxy
+import           Data.Text
 import           Network.Wai
 
 import           Servant.API
@@ -26,3 +28,16 @@ argumentCombinator ::
 argumentCombinator getArg Proxy context delayed =
   route (Proxy :: Proxy api) context $ addBodyCheck delayed $
   DelayedIO $ \ request -> return $ getArg request
+
+captureCombinator ::
+  forall api combinator arg context env .
+  (HasServer api context) =>
+  (Text -> RouteResult arg)
+  -> Proxy (combinator :> api)
+  -> Context context
+  -> Delayed env (arg -> Server api)
+  -> Router' env RoutingApplication
+captureCombinator getArg Proxy context delayed =
+  CaptureRouter $
+  route (Proxy :: Proxy api) context $ addCapture delayed $ \ captured ->
+  DelayedIO $ \ request -> return $ getArg captured
