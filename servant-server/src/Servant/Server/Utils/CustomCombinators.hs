@@ -18,6 +18,7 @@ module Servant.Server.Utils.CustomCombinators (
   RouteResult(..),
 ) where
 
+import           Control.Exception (throwIO, ErrorCall(..))
 import           Data.ByteString
 import           Data.Proxy
 import           Data.Text
@@ -35,6 +36,7 @@ data CombinatorImplementation combinator arg api context where
     -> Router' env RoutingApplication)
     -> CombinatorImplementation combinator arg api context
 
+-- fixme: get rid of WithArg?
 type family WithArg arg rest where
   WithArg () rest = rest
   WithArg arg rest = arg -> rest
@@ -65,7 +67,7 @@ makeRequestCheckCombinator ::
   -> CombinatorImplementation combinator () api context
 makeRequestCheckCombinator check = CI $ \ Proxy context delayed ->
   route (Proxy :: Proxy api) context $ addMethodCheck delayed $
-  DelayedIO $ \ request -> check request
+  DelayedIO $ \ request -> check $ protectBody "makeRequestCheckCombinator" request
 
 makeAuthCombinator ::
   forall api combinator arg context .
@@ -75,7 +77,7 @@ makeAuthCombinator ::
   -> CombinatorImplementation combinator arg api context
 makeAuthCombinator authCheck = CI $ \ Proxy context delayed ->
   route (Proxy :: Proxy api) context $ addAuthCheck delayed $
-  DelayedIO $ \ request -> authCheck request
+  DelayedIO $ \ request -> authCheck $ protectBody "makeAuthCombinator" request
 
 makeReqBodyCombinator ::
   forall api combinator arg context .
@@ -98,3 +100,9 @@ makeCombinator ::
 makeCombinator getArg = CI $ \ Proxy context delayed ->
   route (Proxy :: Proxy api) context $ addBodyCheck delayed $
   DelayedIO $ \ request -> getArg request
+
+protectBody :: String -> Request -> Request
+protectBody name request = request{
+  requestBody = throwIO $ ErrorCall $
+    "ERROR: " ++ name ++ ": combinator must not access the request body"
+}
