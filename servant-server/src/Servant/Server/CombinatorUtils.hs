@@ -7,11 +7,11 @@
 module Servant.Server.CombinatorUtils (
   CombinatorImplementation,
   runCI,
-  implementCaptureCombinator,
-  implementRequestCheck,
-  implementAuthCombinator,
-  argumentCombinator,
-  implementRequestStreamingCombinator,
+  makeCaptureCombinator,
+  makeRequestCheckCombinator,
+  makeAuthCombinator,
+  makeReqBodyCombinator,
+  makeCombinator,
 
   -- * re-exports
 
@@ -46,55 +46,55 @@ runCI :: CombinatorImplementation combinator arg api context
   -> Router' env RoutingApplication
 runCI (CI i) = i
 
-implementCaptureCombinator ::
+makeCaptureCombinator ::
   forall api combinator arg context .
   (HasServer api context,
    WithArg arg (ServerT api Handler) ~ (arg -> ServerT api Handler)) =>
   (Text -> RouteResult arg)
   -> CombinatorImplementation combinator arg api context
-implementCaptureCombinator getArg = CI $ \ Proxy context delayed ->
+makeCaptureCombinator getArg = CI $ \ Proxy context delayed ->
   CaptureRouter $
   route (Proxy :: Proxy api) context $ addCapture delayed $ \ captured ->
   DelayedIO $ \ _request -> return $ getArg captured
 
-implementRequestCheck ::
+makeRequestCheckCombinator ::
   forall api combinator context .
   (HasServer api context,
    WithArg () (ServerT api Handler) ~ ServerT api Handler) =>
   (Request -> RouteResult ())
   -> CombinatorImplementation combinator () api context
-implementRequestCheck check = CI $ \ Proxy context delayed ->
+makeRequestCheckCombinator check = CI $ \ Proxy context delayed ->
   route (Proxy :: Proxy api) context $ addMethodCheck delayed $
   DelayedIO $ \ request -> return $ check request
 
-implementAuthCombinator ::
+makeAuthCombinator ::
   forall api combinator arg context .
   (HasServer api context,
    WithArg arg (ServerT api Handler) ~ (arg -> ServerT api Handler)) =>
   (Request -> RouteResult arg)
   -> CombinatorImplementation combinator arg api context
-implementAuthCombinator authCheck = CI $ \ Proxy context delayed ->
+makeAuthCombinator authCheck = CI $ \ Proxy context delayed ->
   route (Proxy :: Proxy api) context $ addAuthCheck delayed $
   DelayedIO $ \ request -> return $ authCheck request
 
-argumentCombinator ::
-  forall api combinator arg context .
-  (ServerT (combinator :> api) Handler ~ (arg -> ServerT api Handler),
-   WithArg arg (ServerT api Handler) ~ (arg -> ServerT api Handler),
-   HasServer api context) =>
-  (Request -> RouteResult arg)
-  -> CombinatorImplementation combinator arg api context
-argumentCombinator getArg = CI $ \ Proxy context delayed ->
-  route (Proxy :: Proxy api) context $ addBodyCheck delayed $
-  DelayedIO $ \ request -> return $ getArg request
-
-implementRequestStreamingCombinator ::
+makeReqBodyCombinator ::
   forall api combinator arg context .
   (ServerT (combinator :> api) Handler ~ (arg -> ServerT api Handler),
    WithArg arg (ServerT api Handler) ~ (arg -> ServerT api Handler),
    HasServer api context) =>
   (IO ByteString -> arg)
   -> CombinatorImplementation combinator arg api context
-implementRequestStreamingCombinator getArg = CI $ \ Proxy context delayed ->
+makeReqBodyCombinator getArg = CI $ \ Proxy context delayed ->
   route (Proxy :: Proxy api) context $ addBodyCheck delayed $
   DelayedIO $ \ request -> return $ Route $ getArg $ requestBody request
+
+makeCombinator ::
+  forall api combinator arg context .
+  (ServerT (combinator :> api) Handler ~ (arg -> ServerT api Handler),
+   WithArg arg (ServerT api Handler) ~ (arg -> ServerT api Handler),
+   HasServer api context) =>
+  (Request -> RouteResult arg)
+  -> CombinatorImplementation combinator arg api context
+makeCombinator getArg = CI $ \ Proxy context delayed ->
+  route (Proxy :: Proxy api) context $ addBodyCheck delayed $
+  DelayedIO $ \ request -> return $ getArg request
