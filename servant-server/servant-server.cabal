@@ -115,25 +115,27 @@ test-suite spec
     , base-compat
     , aeson
     , base64-bytestring
+    , blaze-builder
     , bytestring
+    , deepseq
     , directory
     , exceptions
     , hspec == 2.*
     , hspec-wai
     , http-types
+    , mtl
     , network >= 2.6
-    , QuickCheck
     , parsec
+    , QuickCheck
     , safe
     , servant
     , servant-server
-    , string-conversions
     , should-not-typecheck == 2.1.*
+    , string-conversions
     , temporary
     , text
     , transformers
     , transformers-compat
-    , mtl
     , wai
     , wai-extra
     , warp
