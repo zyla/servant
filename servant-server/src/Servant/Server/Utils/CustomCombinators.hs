@@ -38,14 +38,15 @@ import           Servant.Server
 import           Servant.Server.Internal
 
 data ServerCombinator combinator serverType api context where
+data ServerCombinator combinator api context serverType where
   CI :: (forall env .
     Proxy (combinator :> api)
     -> Context context
     -> Delayed env serverType
     -> Router' env RoutingApplication)
-    -> ServerCombinator combinator serverType api context
+    -> ServerCombinator combinator api context serverType
 
-runServerCombinator :: ServerCombinator combinator serverType api context
+runServerCombinator :: ServerCombinator combinator api context serverType
   -> Proxy (combinator :> api)
   -> Context context
   -> Delayed env serverType
@@ -68,14 +69,14 @@ runServerCombinator (CI i) = i
 makeCaptureCombinator ::
   (HasServer api context) =>
   (Context context -> Text -> IO (RouteResult arg))
-  -> ServerCombinator combinator (arg -> ServerT api Handler) api context
+  -> ServerCombinator combinator api context (arg -> ServerT api Handler)
 makeCaptureCombinator = inner -- we use 'inner' to avoid having 'forall' show up in haddock docs
   where
     inner ::
       forall api combinator arg context .
       (HasServer api context) =>
       (Context context -> Text -> IO (RouteResult arg))
-      -> ServerCombinator combinator (arg -> ServerT api Handler) api context
+      -> ServerCombinator combinator api context (arg -> ServerT api Handler)
     inner getArg = CI $ \ Proxy context delayed ->
       CaptureRouter $
       route (Proxy :: Proxy api) context $ addCapture delayed $ \ captured ->
@@ -95,14 +96,14 @@ makeCaptureCombinator = inner -- we use 'inner' to avoid having 'forall' show up
 makeRequestCheckCombinator ::
   (HasServer api context) =>
   (Context context -> Request -> IO (RouteResult ()))
-  -> ServerCombinator combinator (ServerT api Handler) api context
+  -> ServerCombinator combinator api context (ServerT api Handler)
 makeRequestCheckCombinator = inner
   where
     inner ::
       forall api combinator context .
       (HasServer api context) =>
       (Context context -> Request -> IO (RouteResult ()))
-      -> ServerCombinator combinator (ServerT api Handler) api context
+      -> ServerCombinator combinator api context (ServerT api Handler)
     inner check = CI $ \ Proxy context delayed ->
       route (Proxy :: Proxy api) context $ addMethodCheck delayed $
       DelayedIO $ \ request -> check context $ protectBody "makeRequestCheckCombinator" request
@@ -110,14 +111,14 @@ makeRequestCheckCombinator = inner
 makeAuthCombinator ::
   (HasServer api context) =>
   (Context context -> Request -> IO (RouteResult arg))
-  -> ServerCombinator combinator (arg -> ServerT api Handler) api context
+  -> ServerCombinator combinator api context (arg -> ServerT api Handler)
 makeAuthCombinator = inner
   where
     inner ::
       forall api combinator arg context .
       (HasServer api context) =>
       (Context context -> Request -> IO (RouteResult arg))
-      -> ServerCombinator combinator (arg -> ServerT api Handler) api context
+      -> ServerCombinator combinator api context (arg -> ServerT api Handler)
     inner authCheck = CI $ \ Proxy context delayed ->
       route (Proxy :: Proxy api) context $ addAuthCheck delayed $
       DelayedIO $ \ request -> authCheck context $ protectBody "makeAuthCombinator" request
@@ -125,14 +126,14 @@ makeAuthCombinator = inner
 makeCombinator ::
   (HasServer api context) =>
   (Context context -> Request -> IO (RouteResult arg))
-  -> ServerCombinator combinator (arg -> ServerT api Handler) api context
+  -> ServerCombinator combinator api context (arg -> ServerT api Handler)
 makeCombinator = inner
   where
     inner ::
       forall api combinator arg context .
       (HasServer api context) =>
       (Context context -> Request -> IO (RouteResult arg))
-      -> ServerCombinator combinator (arg -> ServerT api Handler) api context
+      -> ServerCombinator combinator api context (arg -> ServerT api Handler)
     inner getArg = CI $ \ Proxy context delayed ->
       route (Proxy :: Proxy api) context $ addBodyCheck delayed $
       DelayedIO $ \ request -> getArg context request
