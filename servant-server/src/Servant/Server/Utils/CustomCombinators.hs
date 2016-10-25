@@ -6,6 +6,7 @@
 
 -- fixme: document phases
 -- fixme: document that the req body can only be consumed once
+-- fixme: document that you can write request body streaming combinators
 -- fixme: document dependency problem
 
 module Servant.Server.Utils.CustomCombinators (
@@ -20,7 +21,6 @@ module Servant.Server.Utils.CustomCombinators (
   makeCaptureCombinator,
   makeRequestCheckCombinator,
   makeAuthCombinator,
-  makeReqBodyCombinator,
   makeCombinator,
 
   -- * Re-exports
@@ -29,12 +29,9 @@ module Servant.Server.Utils.CustomCombinators (
 ) where
 
 import           Control.Exception (throwIO, ErrorCall(..))
-import           Data.ByteString
 import           Data.Proxy
-import           Data.String.Conversions
 import           Data.Text
 import           Network.Wai
-import           Text.Read
 
 import           Servant.API
 import           Servant.Server
@@ -58,6 +55,7 @@ runServerCombinator (CI i) = i
 -- |
 -- >>> :set -XTypeFamilies
 -- >>> :{
+--   import Text.Read
 --   data MyCaptureCombinator
 --   instance HasServer api context => HasServer (MyCaptureCombinator :> api) context where
 --     type ServerT (MyCaptureCombinator :> api) m = Int -> ServerT api m
@@ -123,21 +121,6 @@ makeAuthCombinator = inner
     inner authCheck = CI $ \ Proxy context delayed ->
       route (Proxy :: Proxy api) context $ addAuthCheck delayed $
       DelayedIO $ \ request -> authCheck context $ protectBody "makeAuthCombinator" request
-
-makeReqBodyCombinator ::
-  (HasServer api context) =>
-  (Context context -> IO ByteString -> arg)
-  -> ServerCombinator combinator (arg -> ServerT api Handler) api context
-makeReqBodyCombinator = inner
-  where
-    inner ::
-      forall api combinator arg context .
-      (HasServer api context) =>
-      (Context context -> IO ByteString -> arg)
-      -> ServerCombinator combinator (arg -> ServerT api Handler) api context
-    inner getArg = CI $ \ Proxy context delayed ->
-      route (Proxy :: Proxy api) context $ addBodyCheck delayed $
-      DelayedIO $ \ request -> return $ Route $ getArg context $ requestBody request
 
 makeCombinator ::
   (HasServer api context) =>
