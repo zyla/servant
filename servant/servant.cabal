@@ -48,6 +48,7 @@ library
     Servant.API.WithNamedContext
     Servant.Utils.Links
     Servant.Utils.Enter
+    Servant.Utils.ValidateAPI
   build-depends:
       base                  >= 4.7  && < 4.10
     , base-compat           >= 0.9  && < 0.10
